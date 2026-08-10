@@ -11,8 +11,11 @@ export default function ExtratoUploader() {
     const formData = new FormData();
     formData.append('file', file);
 
+    // Usa a variável de ambiente do Vite ou o link atual do Render como segurança
+    const API_URL = import.meta.env.VITE_API_URL || 'https://condoflow-backend-ep3z.onrender.com';
+
     try {
-      const response = await fetch('https://condoflow-api.onrender.com/api/processar-extrato-bradesco', {
+      const response = await fetch(`${API_URL}/api/processar-extrato-bradesco`, {
         method: 'POST',
         body: formData,
       });
