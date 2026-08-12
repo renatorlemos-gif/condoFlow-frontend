@@ -2,20 +2,23 @@ import React, { useState } from 'react';
 
 export default function ExtratoUploader() {
   const [file, setFile] = useState(null);
+  const [banco, setBanco] = useState('bradesco');
   const [loading, setLoading] = useState(false);
 
   const handleUpload = async () => {
-    if (!file) return alert('Selecione um arquivo .xls do Bradesco!');
+    if (!file) return alert('Selecione um arquivo de extrato!');
     
     setLoading(true);
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('banco', banco);
 
     // Usa a variável de ambiente do Vite ou o link atual do Render como segurança
     const API_URL = import.meta.env.VITE_API_URL || 'https://condoflow-backend-ep3z.onrender.com';
 
     try {
-      const response = await fetch(`${API_URL}/api/processar-extrato-bradesco`, {
+      // Ajustado para o endpoint unificado /api/processar-extrato que recebe o parâmetro 'banco'
+      const response = await fetch(`${API_URL}/api/processar-extrato`, {
         method: 'POST',
         body: formData,
       });
@@ -26,7 +29,7 @@ export default function ExtratoUploader() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = "extrato_consolidado_bradesco.xlsx";
+      a.download = `extrato_consolidado_${banco}.xlsx`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -39,9 +42,22 @@ export default function ExtratoUploader() {
 
   return (
     <div className="p-8 max-w-md mx-auto bg-white rounded-xl shadow-lg space-y-4 border border-gray-100 mt-10">
-      <h2 className="text-2xl font-bold text-gray-800">Processador Bradesco</h2>
-      <p className="text-sm text-gray-500">Envie o arquivo do extrato para gerar a planilha consolidada com débitos negativos.</p>
+      <h2 className="text-2xl font-bold text-gray-800">Processador de Extratos</h2>
+      <p className="text-sm text-gray-500">Selecione o banco, envie o arquivo e gere a planilha consolidada.</p>
       
+      {/* Seletor de Banco */}
+      <div className="space-y-1">
+        <label className="block text-sm font-medium text-gray-700">Banco</label>
+        <select 
+          value={banco} 
+          onChange={(e) => setBanco(e.target.value)}
+          className="block w-full p-2.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option value="bradesco">Bradesco</option>
+          <option value="santander">Santander</option>
+        </select>
+      </div>
+
       <input 
         type="file" 
         onChange={(e) => setFile(e.target.files[0])} 
