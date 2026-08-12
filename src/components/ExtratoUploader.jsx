@@ -258,18 +258,24 @@ function ExtratoProcessor() {
 
       if (!response.ok) throw new Error("Erro ao processar o extrato no servidor.");
 
+      // O nome do arquivo baixado é o que o back retornar no header
+      // Content-Disposition. O front não define nem altera esse nome.
+      const disposition = response.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+      const filename = match ? decodeURIComponent(match[1]) : "extrato_consolidado.xlsx";
+
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `extrato_consolidado_${banco}.xlsx`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
 
       setLastResult({
-        name: `extrato_consolidado_${banco}.xlsx`,
+        name: filename,
         banco,
         when: new Date().toLocaleString("pt-BR"),
       });
