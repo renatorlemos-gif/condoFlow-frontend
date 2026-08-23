@@ -55,11 +55,18 @@ export function EscanearDocumentos() {
     formData.append("file", file);
 
     try {
-      // Utilizando a rota relativa mapeada pelo proxy do Vite
-      const response = await fetch("/api/v1/documentos/escanear?condominio_id=cond_teste&db_context=db_teste", {
-        method: "POST",
-        body: formData,
-      });
+      // Em desenvolvimento, caminho relativo passa pelo proxy do Vite
+      // (vite.config.js) até http://localhost:8000. Em produção (Vercel),
+      // não existe esse proxy, então VITE_API_URL precisa apontar para o
+      // backend publicado — mesma variável usada em ExtratoUploader.jsx.
+      const API_URL = import.meta.env.VITE_API_URL || "";
+      const response = await fetch(
+        `${API_URL}/api/v1/documentos/escanear?condominio_id=cond_teste&db_context=db_teste`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Erro ao processar o documento no servidor.");
