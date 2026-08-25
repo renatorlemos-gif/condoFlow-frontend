@@ -444,6 +444,97 @@
 .btn-secondary:hover { background: var(--navy-800); }
 .btn-secondary:active { transform: translateY(1px); }
 
+/* prévia de imagem na dropzone */
+.dropzone--preview { padding: 0; border-style: solid; overflow: hidden; }
+.dropzone__preview-wrap {
+  position: relative;
+  width: 100%;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+}
+.dropzone__img {
+  width: 100%;
+  max-height: 340px;
+  object-fit: contain;
+  display: block;
+}
+.dropzone__pdf-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 24px;
+  color: var(--ink-soft);
+}
+.dropzone__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(16,27,48,0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  backdrop-filter: blur(2px);
+}
+.dropzone__remove--float {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255,255,255,0.9);
+  border: 1px solid var(--line);
+  z-index: 2;
+}
+.dropzone__remove--float:hover { background: var(--red-tint); color: var(--red); }
+
+/* cabeçalho de seção com botão de imprimir */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.btn-print {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.btn-print:hover { border-color: var(--ledger); color: var(--ledger); }
+
+/* ---------------- Impressão ---------------- */
+@media print {
+  /* Esconde tudo menos a foto */
+  .sidebar, .topbar, .page__head,
+  .dropzone__remove--float, .dropzone__overlay,
+  .perf, .slip__actions, .feedback,
+  .print-area { display: none !important; }
+
+  /* Remove sombras e bordas desnecessárias do card da foto */
+  .slip { box-shadow: none !important; border: none !important; padding: 0 !important; }
+
+  /* A foto ocupa a página inteira */
+  .dropzone__img {
+    width: 100% !important;
+    max-height: none !important;
+    page-break-inside: avoid;
+  }
+}
+
 /* ---------------- Responsivo ---------------- */
 @media (max-width: 860px) {
   .sidebar {
