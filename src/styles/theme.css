@@ -486,6 +486,9 @@
 .dropzone__overlay--success {
   background: rgba(46,107,82,0.82);
 }
+.dropzone__overlay--rejected {
+  background: rgba(179,69,47,0.82);
+}
 .dropzone__remove--float {
   position: absolute;
   top: 8px;

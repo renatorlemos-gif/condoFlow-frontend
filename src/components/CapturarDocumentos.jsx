@@ -1,9 +1,8 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
-/*  Ícones inline — sem dependência externa                            */
+/*  Ícones inline                                                       */
 /* ------------------------------------------------------------------ */
-
 const iconBase = (size, strokeWidth) => ({
   width: size, height: size, viewBox: "0 0 24 24",
   fill: "none", stroke: "currentColor",
@@ -58,52 +57,41 @@ function X({ size = 18, strokeWidth = 2, className }) {
 /* ------------------------------------------------------------------ */
 
 export default function CapturarDocumentos() {
-  const [file, setFile]       = useState(null);
-  const [preview, setPreview] = useState(null);
-  const [status, setStatus]   = useState("idle"); // idle | loading | success | error
-  const [errorMsg, setErrorMsg] = useState("");
+  const [file, setFile]         = useState(null);
+  const [preview, setPreview]   = useState(null);
+  const [status, setStatus]     = useState("idle"); // idle | validating | uploading | success | rejected | error
+  const [mensagem, setMensagem] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const inputRef  = useRef(null);
-  const abortRef  = useRef(null);
+  const inputRef = useRef(null);
+  const abortRef = useRef(null);
 
-  /* Libera object URL ao trocar arquivo ou desmontar */
   useEffect(() => {
     return () => { if (preview) URL.revokeObjectURL(preview); };
   }, [preview]);
 
-  /* ---------------------------------------------------------------- */
-  /*  Seleciona arquivo e dispara upload automaticamente               */
-  /* ---------------------------------------------------------------- */
-  const pickFile = useCallback((f) => {
-    if (!f) return;
-
-    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
-    if (preview) URL.revokeObjectURL(preview);
-
-    setFile(f);
-    setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
-    setStatus("loading");
-    setErrorMsg("");
-
-    enviar(f);
-  }, [preview]);
-
-  /* ---------------------------------------------------------------- */
-  /*  Remove e cancela                                                  */
-  /* ---------------------------------------------------------------- */
-  const removeFile = useCallback(() => {
+  const resetar = useCallback(() => {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     if (preview) URL.revokeObjectURL(preview);
     setFile(null);
     setPreview(null);
     setStatus("idle");
-    setErrorMsg("");
+    setMensagem("");
     if (inputRef.current) inputRef.current.value = "";
   }, [preview]);
 
-  /* ---------------------------------------------------------------- */
-  /*  Upload para o backend → Supabase                                 */
-  /* ---------------------------------------------------------------- */
+  const pickFile = useCallback((f) => {
+    if (!f) return;
+    if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
+    if (preview) URL.revokeObjectURL(preview);
+
+    setFile(f);
+    setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
+    setStatus("validating");
+    setMensagem("");
+
+    enviar(f);
+  }, [preview]);
+
   const enviar = async (f) => {
     const controller = new AbortController();
     abortRef.current = controller;
@@ -114,39 +102,37 @@ export default function CapturarDocumentos() {
     const API_URL = import.meta.env.VITE_API_URL || "";
 
     try {
+      // Muda para "uploading" assim que a validação começa no backend
+      // (o backend faz os dois em sequência; o front mostra etapas)
       const response = await fetch(`${API_URL}/api/v1/documentos/upload`, {
         method: "POST",
         body: formData,
         signal: controller.signal,
       });
 
-      if (!response.ok) throw new Error("Erro ao enviar o documento.");
+      if (response.status === 422) {
+        // Qualidade insuficiente — backend não salvou o arquivo
+        const data = await response.json();
+        const motivo = data?.detail || "Qualidade insuficiente para extração de dados.";
+        setStatus("rejected");
+        setMensagem(motivo);
+        return;
+      }
+
+      if (!response.ok) {
+        throw new Error("Erro ao enviar o documento.");
+      }
 
       setStatus("success");
     } catch (err) {
       if (err.name === "AbortError") return;
       setStatus("error");
-      setErrorMsg(err.message || "Não foi possível enviar o documento.");
+      setMensagem(err.message || "Não foi possível enviar o documento.");
     } finally {
       abortRef.current = null;
     }
   };
 
-  /* ---------------------------------------------------------------- */
-  /*  Nova captura — limpa tudo para a próxima foto                    */
-  /* ---------------------------------------------------------------- */
-  const novaCaptura = () => {
-    if (preview) URL.revokeObjectURL(preview);
-    setFile(null);
-    setPreview(null);
-    setStatus("idle");
-    setErrorMsg("");
-    if (inputRef.current) inputRef.current.value = "";
-  };
-
-  /* ---------------------------------------------------------------- */
-  /*  Drag & drop                                                       */
-  /* ---------------------------------------------------------------- */
   const handleDrag = useCallback((e, active) => {
     e.preventDefault(); e.stopPropagation(); setDragActive(active);
   }, []);
@@ -157,9 +143,14 @@ export default function CapturarDocumentos() {
     if (f) pickFile(f);
   }, [pickFile]);
 
-  /* ---------------------------------------------------------------- */
-  /*  Render                                                            */
-  /* ---------------------------------------------------------------- */
+  /* Labels do overlay conforme estado */
+  const overlayLabel = {
+    validating: { icon: <Loader2 size={28} className="spin" />, texto: "Verificando qualidade…" },
+    uploading:  { icon: <Loader2 size={28} className="spin" />, texto: "Enviando…" },
+    success:    { icon: <CheckCircle2 size={28} />, texto: "Enviado!", css: "dropzone__overlay--success" },
+    rejected:   { icon: <AlertTriangle size={28} />, texto: "Foto recusada", css: "dropzone__overlay--rejected" },
+  }[status];
+
   return (
     <div className="page">
       <div className="page__head">
@@ -172,7 +163,6 @@ export default function CapturarDocumentos() {
       </div>
 
       <div className="slip">
-        {/* ---- Área de upload / preview ---- */}
         <label
           className={[
             "dropzone",
@@ -194,7 +184,6 @@ export default function CapturarDocumentos() {
           />
 
           {!file ? (
-            /* Estado vazio */
             <div className="dropzone__empty">
               <span className="dropzone__icon">
                 <UploadCloud size={22} strokeWidth={1.8} />
@@ -203,7 +192,6 @@ export default function CapturarDocumentos() {
               <span className="dropzone__hint">PDF, JPG ou PNG · toque para abrir a câmera</span>
             </div>
           ) : (
-            /* Estado com arquivo */
             <div className="dropzone__preview-wrap">
               {preview
                 ? <img src={preview} alt="Prévia do documento" className="dropzone__img" />
@@ -214,28 +202,20 @@ export default function CapturarDocumentos() {
                 )
               }
 
-              {/* Overlay de loading */}
-              {status === "loading" && (
-                <div className="dropzone__overlay">
-                  <Loader2 size={28} className="spin" />
-                  <span>Enviando…</span>
+              {/* Overlay de estado */}
+              {overlayLabel && (
+                <div className={`dropzone__overlay ${overlayLabel.css || ""}`}>
+                  {overlayLabel.icon}
+                  <span>{overlayLabel.texto}</span>
                 </div>
               )}
 
-              {/* Overlay de sucesso */}
-              {status === "success" && (
-                <div className="dropzone__overlay dropzone__overlay--success">
-                  <CheckCircle2 size={28} />
-                  <span>Enviado!</span>
-                </div>
-              )}
-
-              {/* Botão remover (só quando não foi enviado com sucesso) */}
+              {/* Botão remover (disponível em qualquer estado exceto success) */}
               {status !== "success" && (
                 <button
                   type="button"
                   className="dropzone__remove dropzone__remove--float"
-                  onClick={(e) => { e.preventDefault(); removeFile(); }}
+                  onClick={(e) => { e.preventDefault(); resetar(); }}
                   aria-label="Remover arquivo"
                 >
                   <X size={15} />
@@ -245,35 +225,42 @@ export default function CapturarDocumentos() {
           )}
         </label>
 
-        {/* ---- Erro ---- */}
+        {/* Motivo da rejeição */}
+        {status === "rejected" && (
+          <div className="feedback feedback--error" style={{ marginTop: 12 }}>
+            <AlertTriangle size={15} />
+            <span><strong>Foto recusada:</strong> {mensagem} — tire uma nova foto com melhor iluminação e foco.</span>
+          </div>
+        )}
+
+        {/* Erro técnico */}
         {status === "error" && (
           <div className="feedback feedback--error" style={{ marginTop: 12 }}>
             <AlertTriangle size={15} />
-            <span>{errorMsg}</span>
+            <span>{mensagem}</span>
           </div>
         )}
 
-        {/* ---- Ação pós-sucesso ---- */}
-        {status === "success" && (
-          <div className="perf" aria-hidden="true">
-            <span className="perf__notch perf__notch--left" />
-            <span className="perf__line" />
-            <span className="perf__notch perf__notch--right" />
-          </div>
-        )}
-
-        {status === "success" && (
-          <div className="slip__actions">
-            <button type="button" className="btn-primary" onClick={novaCaptura}>
-              Fotografar próximo documento
-            </button>
-          </div>
+        {/* Ações pós-sucesso ou pós-rejeição */}
+        {(status === "success" || status === "rejected") && (
+          <>
+            <div className="perf" aria-hidden="true">
+              <span className="perf__notch perf__notch--left" />
+              <span className="perf__line" />
+              <span className="perf__notch perf__notch--right" />
+            </div>
+            <div className="slip__actions">
+              <button type="button" className="btn-primary" onClick={resetar}>
+                {status === "success" ? "Fotografar próximo documento" : "Tentar novamente"}
+              </button>
+            </div>
+          </>
         )}
       </div>
 
       <p className="page__footnote">
-        O arquivo é enviado com segurança e armazenado vinculado ao condomínio.
-        A extração automática de dados ocorre em segundo plano.
+        O arquivo é enviado com segurança após validação automática de qualidade.
+        Imagens fora de foco, escuras ou cortadas são recusadas para garantir a extração correta dos dados.
       </p>
     </div>
   );
