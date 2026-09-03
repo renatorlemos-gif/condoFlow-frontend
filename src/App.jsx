@@ -1,15 +1,14 @@
 import React, { useState } from "react";
 import AppShell from "./components/layout/AppShell";
 import ExtratoUploader from "./components/ExtratoUploader";
+import CapturarDocumentos from "./components/CapturarDocumentos";
 import { EscanearDocumentos } from "./components/EscanearDocumentos";
-import { FileSpreadsheet, ScanLine } from "./components/layout/icons";
+import { FileSpreadsheet, ScanLine, ImageIcon } from "./components/layout/icons";
 
 /**
  * Lista única de páginas do CondoFlow. Para adicionar uma nova
- * funcionalidade no futuro (Dashboard, Boletos, etc.):
- *   1. crie o componente da página em src/components/
- *   2. adicione uma linha aqui, com id, label, ícone e o componente
- * Nada no AppShell precisa mudar.
+ * funcionalidade: crie o componente em src/components/ e adicione
+ * uma linha aqui. O AppShell não precisa ser tocado.
  */
 const PAGES = [
   {
@@ -17,6 +16,12 @@ const PAGES = [
     label: "Processar Extratos",
     icon: FileSpreadsheet,
     component: ExtratoUploader,
+  },
+  {
+    id: "capturar-documentos",
+    label: "Capturar Documentos",
+    icon: ImageIcon,
+    component: CapturarDocumentos,
   },
   {
     id: "escanear-documentos",
