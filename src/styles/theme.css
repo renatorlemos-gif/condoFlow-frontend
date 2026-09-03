@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap');
 
 /* ------------------------------------------------------------------ */
-/*  CondoFlow — tema "livro-razão"                                    */
-/*  navy de arquivo + papel frio + selo de conciliação                */
+/*  CondoFlow — tema "livro-razão"                                      */
+/*  navy de arquivo + papel frio + selo de conciliação                  */
 /* ------------------------------------------------------------------ */
 
 :root {
@@ -483,12 +483,9 @@
   font-weight: 500;
   backdrop-filter: blur(2px);
 }
-
 .dropzone__overlay--success {
-  background: rgba(46, 107, 82, 0.85);
-  color: var(--ledger-tint);
+  background: rgba(46,107,82,0.82);
 }
-
 .dropzone__remove--float {
   position: absolute;
   top: 8px;
@@ -524,16 +521,13 @@
 
 /* ---------------- Impressão ---------------- */
 @media print {
-  /* Esconde tudo menos a foto */
   .sidebar, .topbar, .page__head,
   .dropzone__remove--float, .dropzone__overlay,
   .perf, .slip__actions, .feedback,
   .print-area { display: none !important; }
 
-  /* Remove sombras e bordas desnecessárias do card da foto */
   .slip { box-shadow: none !important; border: none !important; padding: 0 !important; }
 
-  /* A foto ocupa a página inteira */
   .dropzone__img {
     width: 100% !important;
     max-height: none !important;
