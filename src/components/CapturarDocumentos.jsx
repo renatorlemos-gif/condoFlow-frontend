@@ -59,8 +59,8 @@ function X({ size = 18, strokeWidth = 2, className }) {
 export default function CapturarDocumentos() {
   const [file, setFile]         = useState(null);
   const [preview, setPreview]   = useState(null);
-  const [status, setStatus]     = useState("idle"); // idle | validating | uploading | success | rejected | error
-  const [mensagem, setMensagem] = useState("");
+  const [status, setStatus]     = useState("idle"); // idle | uploading | success | error
+  const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
   const abortRef = useRef(null);
@@ -75,7 +75,7 @@ export default function CapturarDocumentos() {
     setFile(null);
     setPreview(null);
     setStatus("idle");
-    setMensagem("");
+    setErrorMsg("");
     if (inputRef.current) inputRef.current.value = "";
   }, [preview]);
 
@@ -86,8 +86,8 @@ export default function CapturarDocumentos() {
 
     setFile(f);
     setPreview(f.type.startsWith("image/") ? URL.createObjectURL(f) : null);
-    setStatus("validating");
-    setMensagem("");
+    setStatus("uploading");
+    setErrorMsg("");
 
     enviar(f);
   }, [preview]);
@@ -102,32 +102,22 @@ export default function CapturarDocumentos() {
     const API_URL = import.meta.env.VITE_API_URL || "";
 
     try {
-      // Muda para "uploading" assim que a validação começa no backend
-      // (o backend faz os dois em sequência; o front mostra etapas)
       const response = await fetch(`${API_URL}/api/v1/documentos/upload`, {
         method: "POST",
         body: formData,
         signal: controller.signal,
       });
 
-      if (response.status === 422) {
-        // Qualidade insuficiente — backend não salvou o arquivo
-        const data = await response.json();
-        const motivo = data?.detail || "Qualidade insuficiente para extração de dados.";
-        setStatus("rejected");
-        setMensagem(motivo);
-        return;
-      }
-
       if (!response.ok) {
-        throw new Error("Erro ao enviar o documento.");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data?.detail || "Erro ao enviar o documento.");
       }
 
       setStatus("success");
     } catch (err) {
       if (err.name === "AbortError") return;
       setStatus("error");
-      setMensagem(err.message || "Não foi possível enviar o documento.");
+      setErrorMsg(err.message || "Não foi possível enviar o documento.");
     } finally {
       abortRef.current = null;
     }
@@ -142,14 +132,6 @@ export default function CapturarDocumentos() {
     const f = e.dataTransfer.files?.[0];
     if (f) pickFile(f);
   }, [pickFile]);
-
-  /* Labels do overlay conforme estado */
-  const overlayLabel = {
-    validating: { icon: <Loader2 size={28} className="spin" />, texto: "Verificando qualidade…" },
-    uploading:  { icon: <Loader2 size={28} className="spin" />, texto: "Enviando…" },
-    success:    { icon: <CheckCircle2 size={28} />, texto: "Enviado!", css: "dropzone__overlay--success" },
-    rejected:   { icon: <AlertTriangle size={28} />, texto: "Foto recusada", css: "dropzone__overlay--rejected" },
-  }[status];
 
   return (
     <div className="page">
@@ -202,15 +184,23 @@ export default function CapturarDocumentos() {
                 )
               }
 
-              {/* Overlay de estado */}
-              {overlayLabel && (
-                <div className={`dropzone__overlay ${overlayLabel.css || ""}`}>
-                  {overlayLabel.icon}
-                  <span>{overlayLabel.texto}</span>
+              {/* Overlay de uploading */}
+              {status === "uploading" && (
+                <div className="dropzone__overlay">
+                  <Loader2 size={28} className="spin" />
+                  <span>Enviando…</span>
                 </div>
               )}
 
-              {/* Botão remover (disponível em qualquer estado exceto success) */}
+              {/* Overlay de sucesso */}
+              {status === "success" && (
+                <div className="dropzone__overlay dropzone__overlay--success">
+                  <CheckCircle2 size={28} />
+                  <span>Enviado!</span>
+                </div>
+              )}
+
+              {/* Botão remover */}
               {status !== "success" && (
                 <button
                   type="button"
@@ -225,24 +215,16 @@ export default function CapturarDocumentos() {
           )}
         </label>
 
-        {/* Motivo da rejeição */}
-        {status === "rejected" && (
-          <div className="feedback feedback--error" style={{ marginTop: 12 }}>
-            <AlertTriangle size={15} />
-            <span><strong>Foto recusada:</strong> {mensagem} — tire uma nova foto com melhor iluminação e foco.</span>
-          </div>
-        )}
-
-        {/* Erro técnico */}
+        {/* Erro */}
         {status === "error" && (
           <div className="feedback feedback--error" style={{ marginTop: 12 }}>
             <AlertTriangle size={15} />
-            <span>{mensagem}</span>
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* Ações pós-sucesso ou pós-rejeição */}
-        {(status === "success" || status === "rejected") && (
+        {/* Ações pós-conclusão */}
+        {(status === "success" || status === "error") && (
           <>
             <div className="perf" aria-hidden="true">
               <span className="perf__notch perf__notch--left" />
@@ -259,8 +241,8 @@ export default function CapturarDocumentos() {
       </div>
 
       <p className="page__footnote">
-        O arquivo é enviado com segurança após validação automática de qualidade.
-        Imagens fora de foco, escuras ou cortadas são recusadas para garantir a extração correta dos dados.
+        O arquivo é enviado com segurança e armazenado vinculado ao condomínio.
+        A extração automática de dados ocorre em segundo plano.
       </p>
     </div>
   );
