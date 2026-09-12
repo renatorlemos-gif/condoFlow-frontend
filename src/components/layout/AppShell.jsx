@@ -1,23 +1,24 @@
 import React, { useState } from "react";
 import { Building2, ChevronDown, Menu } from "./icons";
+import { useCondo } from "../../context/CondoContext";
 import "../../styles/theme.css";
 
-/**
- * Casco da aplicação: sidebar + topbar + área de conteúdo.
- * Não conhece nenhuma feature específica (Processar Extratos, Escanear
- * Documentos, etc.) — recebe a lista de páginas via props. Para adicionar
- * uma nova funcionalidade no futuro, NÃO se mexe aqui: adiciona-se um item
- * no array `PAGES` do App.jsx.
- */
 export default function AppShell({
   pages,
   currentPageId,
   onNavigate,
-  condoName = "Residencial Vista Verde",
-  user = { name: "Renato", role: "Síndico profissional", initials: "RS" },
+  user = { name: "Renato", role: "Analista Contábil", initials: "RC" },
   children,
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const {
+    administradoras,
+    selectedAdmId,
+    selectAdm,
+    condominios,
+    selectedCondoId,
+    selectCondo,
+  } = useCondo();
 
   return (
     <div className="app">
@@ -69,11 +70,35 @@ export default function AppShell({
             <Menu size={19} />
           </button>
 
-          <button type="button" className="condo-picker">
-            <Building2 size={15} strokeWidth={2.25} />
-            <span>{condoName}</span>
-            <ChevronDown size={14} />
-          </button>
+          <div className="context-picker">
+            <select
+              className="context-select"
+              value={selectedAdmId}
+              onChange={(e) => selectAdm(e.target.value)}
+              title="Administradora Selecionada"
+            >
+              {administradoras.map((adm) => (
+                <option key={adm.id} value={adm.id}>
+                  🏢 {adm.nome}
+                </option>
+              ))}
+            </select>
+
+            <span style={{ color: "var(--line)", fontWeight: "bold" }}>/</span>
+
+            <select
+              className="context-select"
+              value={selectedCondoId}
+              onChange={(e) => selectCondo(e.target.value)}
+              title="Condomínio Ativo da Carteira"
+            >
+              {condominios.map((c) => (
+                <option key={c.id} value={c.id}>
+                  📍 {c.nome} ({c.cidade || "SP"})
+                </option>
+              ))}
+            </select>
+          </div>
 
           <div className="topbar__spacer" />
 

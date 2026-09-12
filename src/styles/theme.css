@@ -154,6 +154,27 @@
   cursor: pointer;
 }
 .condo-picker:hover { border-color: var(--ledger); }
+.context-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.context-select {
+  border: 1px solid var(--line);
+  background: var(--paper);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+}
+.context-select:hover, .context-select:focus {
+  border-color: var(--ledger);
+  background: #ffffff;
+}
 .topbar__spacer { flex: 1; }
 
 .user-chip { display: flex; align-items: center; gap: 9px; }

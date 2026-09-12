@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { CondoProvider } from "./context/CondoContext";
 import AppShell from "./components/layout/AppShell";
 import ExtratoUploader from "./components/ExtratoUploader";
 import CapturarDocumentos from "./components/CapturarDocumentos";
@@ -20,8 +21,10 @@ export default function App() {
   const CurrentPage = PAGES.find(p => p.id === currentPageId)?.component ?? PAGES[0].component;
 
   return (
-    <AppShell pages={PAGES} currentPageId={currentPageId} onNavigate={setCurrentPageId}>
-      <CurrentPage />
-    </AppShell>
+    <CondoProvider>
+      <AppShell pages={PAGES} currentPageId={currentPageId} onNavigate={setCurrentPageId}>
+        <CurrentPage />
+      </AppShell>
+    </CondoProvider>
   );
 }

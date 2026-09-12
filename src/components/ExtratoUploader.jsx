@@ -8,13 +8,16 @@ import {
   AlertTriangle,
 } from "./layout/icons";
 import { bytesToSize } from "../utils/format";
+import { useCondo } from "../context/CondoContext";
 
 const BANCOS = [
   { id: "bradesco", label: "Bradesco" },
   { id: "santander", label: "Santander" },
+  { id: "itau", label: "Itaú" },
 ];
 
 export default function ExtratoUploader() {
+  const { selectedAdmId, selectedCondoId, currentAdm, currentCondo } = useCondo();
   const [file, setFile] = useState(null);
   const [banco, setBanco] = useState("bradesco");
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
@@ -63,6 +66,9 @@ export default function ExtratoUploader() {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("banco", banco);
+    formData.append("administradora_id", selectedAdmId);
+    formData.append("condominio_id", selectedCondoId);
+    formData.append("condo_nome", currentCondo.nome);
 
     // Em desenvolvimento, caminho relativo passa pelo proxy do Vite
     // (vite.config.js) até http://localhost:8000 — mesmo backend usado
@@ -121,6 +127,21 @@ export default function ExtratoUploader() {
       </div>
 
       <div className="slip">
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "10px 14px",
+          background: "var(--paper)",
+          border: "1px solid var(--line)",
+          borderRadius: "8px",
+          marginBottom: "16px",
+          fontSize: "12.5px"
+        }}>
+          <span><strong>Carteira Ativa:</strong> {currentAdm?.nome} &rarr; <strong>{currentCondo?.nome}</strong></span>
+          <span style={{ fontFamily: "monospace", fontSize: "11px", color: "var(--slate)" }}>ID: {selectedCondoId}</span>
+        </div>
+
         <div className="slip__row">
           <div className="field">
             <span className="field__label">Banco de origem</span>
