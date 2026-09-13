@@ -40,14 +40,6 @@ export function FileSpreadsheet({ size = 18, strokeWidth = 2, className }) {
   );
 }
 
-export function ScanLine({ size = 18, strokeWidth = 2, className }) {
-  return (
-    <svg {...iconBase(size, strokeWidth)} className={className}>
-      <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" />
-      <path d="M3 12h18" />
-    </svg>
-  );
-}
 
 export function ImageIcon({ size = 18, strokeWidth = 2, className }) {
   return (
@@ -138,15 +130,6 @@ export function Menu({ size = 18, strokeWidth = 2, className }) {
   );
 }
 
-export function Printer({ size = 18, strokeWidth = 2, className }) {
-  return (
-    <svg {...iconBase(size, strokeWidth)} className={className}>
-      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
-      <path d="M6 9V3a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v6" />
-      <rect x="6" y="14" width="12" height="8" rx="1" />
-    </svg>
-  );
-}
 
 export function ClipboardCheck({ size = 18, strokeWidth = 2, className }) {
   return (

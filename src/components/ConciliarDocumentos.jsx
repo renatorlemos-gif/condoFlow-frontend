@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Ícones inline                                                       */
@@ -32,6 +32,9 @@ function Search({ size = 18, strokeWidth = 2 }) {
 function X({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="M18 6 6 18M6 6l12 12" /></svg>;
 }
+function Layers({ size = 18, strokeWidth = 2 }) {
+  return <svg {...iconBase(size, strokeWidth)}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
@@ -64,13 +67,15 @@ function mesesDisponiveis() {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Modal de seleção manual de documento                               */
+/*  Modal de seleção manual de documento (Suporta N x N)               */
 /* ------------------------------------------------------------------ */
-function ModalSelecionarDoc({ transacao, onConfirmar, onFechar }) {
+function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
   const [docs, setDocs]     = useState([]);
   const [busca, setBusca]   = useState("");
   const [loading, setLoading] = useState(true);
-  const [selecionado, setSelecionado] = useState(null);
+  
+  // Set of selected doc ids
+  const [selecionados, setSelecionados] = useState(new Set());
 
   useEffect(() => {
     setLoading(true);
@@ -86,6 +91,19 @@ function ModalSelecionarDoc({ transacao, onConfirmar, onFechar }) {
     (d.numero_doc || "").toLowerCase().includes(busca.toLowerCase())
   );
 
+  const toggleDoc = (id) => {
+    const next = new Set(selecionados);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelecionados(next);
+  };
+
+  // Cálculo de Delta
+  const totalTransacoes = transacoes.reduce((acc, t) => acc + Number(t.valor || 0), 0);
+  const totalDocs = docs.filter(d => selecionados.has(d.id)).reduce((acc, d) => acc + Number(d.valor_total || 0), 0);
+  const delta = Math.abs(totalTransacoes - totalDocs);
+  const isDeltaValido = delta <= 0.05; // RNF-03 tolerância de R$ 0,05
+
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 100,
@@ -93,21 +111,45 @@ function ModalSelecionarDoc({ transacao, onConfirmar, onFechar }) {
       display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <div style={{
-        background: "var(--paper-card)", borderRadius: 14, width: 560,
-        maxHeight: "80vh", display: "flex", flexDirection: "column",
+        background: "var(--paper-card)", borderRadius: 14, width: 620,
+        maxHeight: "90vh", display: "flex", flexDirection: "column",
         boxShadow: "0 20px 60px rgba(16,27,48,0.3)",
       }}>
         {/* Header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--line)", display: "flex", alignItems: "flex-start", gap: 10 }}>
           <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--slate)", margin: 0 }}>Vinculando transação</p>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "2px 0 0" }}>
-              {formatDate(transacao.data_transacao)} · {transacao.descricao} · R$ {formatBRL(transacao.valor)}
+            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--slate)", margin: 0 }}>
+              Vinculando {transacoes.length} transaç{transacoes.length > 1 ? "ões" : "ão"}
             </p>
+            <div style={{ maxHeight: 60, overflowY: "auto", marginTop: 4 }}>
+              {transacoes.map(t => (
+                <p key={t.id} style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", margin: "2px 0 0" }}>
+                  {formatDate(t.data_transacao)} · {t.descricao} · R$ {formatBRL(t.valor)}
+                </p>
+              ))}
+            </div>
           </div>
           <button onClick={onFechar} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--slate)" }}>
             <X size={18} />
           </button>
+        </div>
+
+        {/* Resumo do Lote (Delta) */}
+        <div style={{ padding: "12px 20px", background: "var(--ledger-tint)", borderBottom: "1px solid var(--line)", display: "flex", gap: 20 }}>
+          <div>
+            <span style={{ fontSize: 11, color: "var(--slate)" }}>Total Transações</span>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>R$ {formatBRL(totalTransacoes)}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: 11, color: "var(--slate)" }}>Total Documentos ({selecionados.size})</span>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "var(--ledger)" }}>R$ {formatBRL(totalDocs)}</p>
+          </div>
+          <div>
+            <span style={{ fontSize: 11, color: "var(--slate)" }}>Diferença (Delta)</span>
+            <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: isDeltaValido ? "#21503e" : "#b3452f" }}>
+              R$ {formatBRL(delta)}
+            </p>
+          </div>
         </div>
 
         {/* Busca */}
@@ -134,52 +176,61 @@ function ModalSelecionarDoc({ transacao, onConfirmar, onFechar }) {
               Nenhum documento disponível.
             </p>
           )}
-          {filtrados.map(doc => (
-            <div
-              key={doc.id}
-              onClick={() => setSelecionado(doc.id === selecionado ? null : doc.id)}
-              style={{
-                padding: "10px 20px", cursor: "pointer",
-                background: selecionado === doc.id ? "var(--ledger-tint)" : "transparent",
-                borderLeft: selecionado === doc.id ? "3px solid var(--ledger)" : "3px solid transparent",
-                display: "grid", gridTemplateColumns: "1fr auto",
-                gap: 8, alignItems: "center",
-              }}
-            >
-              <div>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
-                  {doc.fornecedor || "Fornecedor não identificado"}
-                </p>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
-                  Nº {doc.numero_doc || "—"} · Emissão: {formatDate(doc.data_emissao)}
-                </p>
+          {filtrados.map(doc => {
+            const selecionado = selecionados.has(doc.id);
+            return (
+              <div
+                key={doc.id}
+                onClick={() => toggleDoc(doc.id)}
+                style={{
+                  padding: "10px 20px", cursor: "pointer",
+                  background: selecionado ? "var(--ledger-tint)" : "transparent",
+                  borderLeft: selecionado ? "3px solid var(--ledger)" : "3px solid transparent",
+                  display: "grid", gridTemplateColumns: "auto 1fr auto",
+                  gap: 12, alignItems: "center",
+                }}
+              >
+                <input type="checkbox" checked={selecionado} readOnly style={{ pointerEvents: "none" }} />
+                <div>
+                  <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
+                    {doc.fornecedor || "Fornecedor não identificado"}
+                  </p>
+                  <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
+                    Nº {doc.numero_doc || "—"} · Emissão: {formatDate(doc.data_emissao)}
+                  </p>
+                </div>
+                <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
+                  R$ {formatBRL(doc.valor_total)}
+                </span>
               </div>
-              <span style={{ fontFamily: "IBM Plex Mono, monospace", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
-                R$ {formatBRL(doc.valor_total)}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button onClick={onFechar} style={{
-            border: "1px solid var(--line)", background: "transparent",
-            borderRadius: 8, padding: "8px 16px", fontSize: 13,
-            fontWeight: 500, cursor: "pointer", color: "var(--ink-soft)",
-          }}>Cancelar</button>
-          <button
-            disabled={!selecionado}
-            onClick={() => onConfirmar(selecionado, "manual")}
-            style={{
-              border: "none", background: selecionado ? "var(--ledger)" : "#c3cbd6",
-              color: "#fff", borderRadius: 8, padding: "8px 18px",
-              fontSize: 13, fontWeight: 600, cursor: selecionado ? "pointer" : "not-allowed",
-              display: "flex", alignItems: "center", gap: 6,
-            }}
-          >
-            <Link2 size={14} /> Vincular
-          </button>
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line)", display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "var(--slate)" }}>
+            * É permitida diferença de até R$ 0,05 (juros/arredondamento).
+          </span>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onFechar} style={{
+              border: "1px solid var(--line)", background: "transparent",
+              borderRadius: 8, padding: "8px 16px", fontSize: 13,
+              fontWeight: 500, cursor: "pointer", color: "var(--ink-soft)",
+            }}>Cancelar</button>
+            <button
+              disabled={!isDeltaValido || selecionados.size === 0}
+              onClick={() => onConfirmar(Array.from(selecionados), transacoes.length > 1 || selecionados.size > 1 ? "lote" : "manual")}
+              style={{
+                border: "none", background: isDeltaValido && selecionados.size > 0 ? "var(--ledger)" : "#c3cbd6",
+                color: "#fff", borderRadius: 8, padding: "8px 18px",
+                fontSize: 13, fontWeight: 600, cursor: isDeltaValido && selecionados.size > 0 ? "pointer" : "not-allowed",
+                display: "flex", alignItems: "center", gap: 6,
+              }}
+            >
+              <Layers size={14} /> Conciliar {transacoes.length > 1 || selecionados.size > 1 ? "Lote" : "Documento"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -189,35 +240,54 @@ function ModalSelecionarDoc({ transacao, onConfirmar, onFechar }) {
 /* ------------------------------------------------------------------ */
 /*  Linha da tabela                                                     */
 /* ------------------------------------------------------------------ */
-function LinhaTransacao({ trans, onConciliar, onDesfazer }) {
+function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleSelec }) {
   const [salvando, setSalvando] = useState(false);
   const [modalAberto, setModalAberto] = useState(false);
 
-  const confirmar = async (docId, tipo) => {
+  const confirmarModal = async (docsIds, tipo) => {
     setSalvando(true);
     setModalAberto(false);
-    await onConciliar(trans.id, docId, tipo);
+    await onConciliar([trans.id], docsIds, tipo);
+    setSalvando(false);
+  };
+
+  const confirmarSugestao = async () => {
+    setSalvando(true);
+    await onConciliar([trans.id], [trans.sugestao.id], "automatica");
     setSalvando(false);
   };
 
   const statusStyle = {
     conciliada: { bg: "#e4efe9", color: "#21503e", label: "Conciliada" },
+    conciliada_em_lote: { bg: "#dbeafe", color: "#1e40af", label: "Agrupada (Lote)" },
     sugerida:   { bg: "#f5ead9", color: "#b8875a", label: "Sugestão"  },
     pendente:   { bg: "#f6e6e1", color: "#b3452f", label: "Pendente"  },
   }[trans.status_conciliacao] || {};
 
-  const isConciliada = trans.status_conciliacao === "conciliada";
+  const isConciliada = trans.status_conciliacao === "conciliada" || trans.status_conciliacao === "conciliada_em_lote";
+  
+  // Determinar qual ID usar para estornar (se lote, envia o lote_id, se individual, pega o ID da conciliação)
+  const estornoId = trans.status_conciliacao === "conciliada_em_lote" 
+    ? trans.lote_id 
+    : (trans.documentos_conciliados?.[0]?.conciliacao_id);
 
   return (
     <>
       {modalAberto && (
         <ModalSelecionarDoc
-          transacao={trans}
-          onConfirmar={confirmar}
+          transacoes={[trans]}
+          onConfirmar={confirmarModal}
           onFechar={() => setModalAberto(false)}
         />
       )}
-      <tr style={{ borderBottom: "1px solid var(--line)" }}>
+      <tr style={{ borderBottom: "1px solid var(--line)", background: selecionada ? "var(--ledger-tint)" : "transparent" }}>
+        {/* Checkbox */}
+        <td style={{ padding: "11px 14px", width: 40, textAlign: "center" }}>
+          {!isConciliada && (
+            <input type="checkbox" checked={selecionada} onChange={onToggleSelec} />
+          )}
+        </td>
+        
         {/* Transação */}
         <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace" }}>
           {formatDate(trans.data_transacao)}
@@ -236,13 +306,22 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer }) {
 
         {/* Documento vinculado */}
         <td style={{ padding: "11px 14px" }}>
-          {isConciliada ? (
+          {trans.status_conciliacao === "conciliada_em_lote" ? (
+            <div>
+              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
+                Agrupado: {trans.documentos_conciliados?.length} documentos
+              </p>
+              <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--slate)" }}>
+                Lote ID: {trans.lote_id}
+              </p>
+            </div>
+          ) : trans.status_conciliacao === "conciliada" && trans.documentos_conciliados?.length > 0 ? (
             <div>
               <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
-                {trans.documento_fornecedor || "Fornecedor não identificado"}
+                {trans.documentos_conciliados[0].fornecedor || "Fornecedor não identificado"}
               </p>
               <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
-                R$ {formatBRL(trans.documento_valor)}
+                R$ {formatBRL(trans.documentos_conciliados[0].valor)}
               </p>
             </div>
           ) : trans.sugestao ? (
@@ -262,7 +341,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer }) {
         {/* Status */}
         <td style={{ padding: "11px 14px" }}>
           <span style={{ background: statusStyle.bg, color: statusStyle.color,
-                         fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "2px 8px" }}>
+                         fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap" }}>
             {statusStyle.label}
           </span>
         </td>
@@ -273,18 +352,18 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer }) {
             <Loader2 size={16} className="spin" />
           ) : isConciliada ? (
             <button
-              onClick={() => onDesfazer(trans.conciliacao_id)}
+              onClick={() => onDesfazer(estornoId, trans.status_conciliacao === "conciliada_em_lote")}
               title="Desfazer conciliação"
               style={{ border: "1px solid var(--line)", background: "transparent",
                        borderRadius: 7, padding: "5px 10px", cursor: "pointer",
                        color: "var(--slate)", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}
             >
-              <Unlink size={13} /> Desfazer
+              <Unlink size={13} /> Desfazer {trans.status_conciliacao === "conciliada_em_lote" ? "Lote" : ""}
             </button>
           ) : trans.sugestao ? (
             <div style={{ display: "flex", gap: 6 }}>
               <button
-                onClick={() => confirmar(trans.sugestao.id, "automatica")}
+                onClick={confirmarSugestao}
                 style={{ border: "none", background: "var(--ledger)", color: "#fff",
                          borderRadius: 7, padding: "5px 10px", cursor: "pointer",
                          display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600 }}
@@ -327,10 +406,15 @@ export default function ConciliarDocumentos() {
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [erro, setErro]           = useState("");
+  
+  // Lotes N x N
+  const [selecionadasTrans, setSelecionadasTrans] = useState(new Set());
+  const [modalLoteAberto, setModalLoteAberto] = useState(false);
 
   const carregar = useCallback(() => {
     setLoading(true);
     setErro("");
+    setSelecionadasTrans(new Set());
     const params = new URLSearchParams({ mes_ano: mesAno, limit: "200" });
     if (banco) params.set("banco", banco);
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
@@ -342,38 +426,66 @@ export default function ConciliarDocumentos() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
-  const handleConciliar = async (transacaoId, documentoId, status) => {
+  const handleConciliar = async (transacoesIds, documentosIds, status) => {
     const resp = await fetch(`${API()}/api/v1/conciliacao/conciliar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transacao_id: transacaoId, documento_id: documentoId, status }),
+      body: JSON.stringify({ transacoes_ids: transacoesIds, documentos_ids: documentosIds, status }),
     });
-    if (resp.ok) carregar();
-    else {
+    if (resp.ok) {
+      setModalLoteAberto(false);
+      carregar();
+    } else {
       const d = await resp.json();
       alert(d.detail || "Erro ao conciliar.");
     }
   };
 
-  const handleDesfazer = async (conciliacaoId) => {
-    if (!confirm("Desfazer esta conciliação?")) return;
-    await fetch(`${API()}/api/v1/conciliacao/${conciliacaoId}`, { method: "DELETE" });
+  const handleDesfazer = async (estornoId, isLote) => {
+    const msg = isLote 
+      ? "Esta transação faz parte de um LOTE. Desfazer irá estornar TODAS as transações e documentos deste lote. Confirmar?"
+      : "Desfazer esta conciliação?";
+    if (!confirm(msg)) return;
+    
+    await fetch(`${API()}/api/v1/conciliacao/${estornoId}`, { method: "DELETE" });
     carregar();
+  };
+  
+  const toggleSelectTrans = (id) => {
+    const next = new Set(selecionadasTrans);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelecionadasTrans(next);
+  };
+  
+  const handleVincularLote = async (docsIds, tipo) => {
+    await handleConciliar(Array.from(selecionadasTrans), docsIds, tipo);
   };
 
   // Resumo
   const total      = transacoes.length;
-  const conciliadas = transacoes.filter(t => t.status_conciliacao === "conciliada").length;
+  const conciliadas = transacoes.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
   const sugeridas  = transacoes.filter(t => t.status_conciliacao === "sugerida").length;
   const pendentes  = transacoes.filter(t => t.status_conciliacao === "pendente").length;
 
+  const selecionadasArr = transacoes.filter(t => selecionadasTrans.has(t.id));
+  const valorTotalSelecionadas = selecionadasArr.reduce((acc, t) => acc + Number(t.valor || 0), 0);
+
   return (
     <div className="page" style={{ maxWidth: 1100 }}>
+      {modalLoteAberto && (
+        <ModalSelecionarDoc
+          transacoes={selecionadasArr}
+          onConfirmar={handleVincularLote}
+          onFechar={() => setModalLoteAberto(false)}
+        />
+      )}
+      
       <div className="page__head">
         <span className="page__eyebrow">Conciliação bancária</span>
         <h1 className="page__title">Conciliar Documentos</h1>
         <p className="page__subtitle">
-          Vincule transações do extrato bancário aos documentos fiscais validados.
+          Vincule transações do extrato bancário aos documentos fiscais validados (1x1 ou Agrupado).
         </p>
       </div>
 
@@ -424,6 +536,32 @@ export default function ConciliarDocumentos() {
         </button>
       </div>
 
+      {/* Floating Bar para Lote */}
+      {selecionadasTrans.size > 0 && (
+        <div style={{
+          position: "sticky", top: 16, zIndex: 50,
+          background: "var(--ink)", color: "#fff", borderRadius: 12,
+          padding: "12px 20px", marginBottom: 16, display: "flex",
+          justifyContent: "space-between", alignItems: "center",
+          boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+        }}>
+          <div>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{selecionadasTrans.size} transaç{selecionadasTrans.size > 1 ? "ões" : "ão"} selecionada{selecionadasTrans.size > 1 ? "s" : ""}</p>
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+              Total: R$ {formatBRL(valorTotalSelecionadas)}
+            </p>
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            <button onClick={() => setSelecionadasTrans(new Set())} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
+              Cancelar
+            </button>
+            <button onClick={() => setModalLoteAberto(true)} style={{ background: "var(--ledger)", border: "none", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
+              <Layers size={15}/> Conciliar Agrupado
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Tabela */}
       {loading && (
         <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
@@ -448,6 +586,7 @@ export default function ConciliarDocumentos() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
+                <th style={{ width: 40 }}></th>
                 {["Data", "Descrição / Banco", "Valor", "Documento vinculado", "Status", "Ação"].map(h => (
                   <th key={h} style={{
                     padding: "10px 14px", textAlign: "left",
@@ -464,6 +603,8 @@ export default function ConciliarDocumentos() {
                   trans={trans}
                   onConciliar={handleConciliar}
                   onDesfazer={handleDesfazer}
+                  selecionada={selecionadasTrans.has(trans.id)}
+                  onToggleSelec={() => toggleSelectTrans(trans.id)}
                 />
               ))}
             </tbody>
