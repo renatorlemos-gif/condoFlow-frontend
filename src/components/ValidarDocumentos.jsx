@@ -24,6 +24,17 @@ function ArrowLeft({ size = 18, strokeWidth = 2 }) {
 function ZoomIn({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35M11 8v6M8 11h6" /></svg>;
 }
+function Printer({ size = 18, strokeWidth = 2 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" strokeWidth={strokeWidth}
+         strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="6 9 6 2 18 2 18 9" />
+      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+      <rect x="6" y="14" width="12" height="8" />
+    </svg>
+  );
+}
 function AlertTriangle({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="m10.29 3.86-8.18 14.18A2 2 0 0 0 4 21h16a2 2 0 0 0 1.89-2.96L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></svg>;
 }
@@ -71,6 +82,8 @@ function FotoModal({ url, onClose }) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const isPdf = url && url.toLowerCase().includes(".pdf");
+
   return (
     <div
       onClick={onClose}
@@ -81,13 +94,21 @@ function FotoModal({ url, onClose }) {
         cursor: "zoom-out",
       }}
     >
-      <img
-        src={url}
-        alt="Documento ampliado"
-        onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: "92vw", maxHeight: "92vh", objectFit: "contain",
-                 borderRadius: 8, cursor: "default" }}
-      />
+      {isPdf ? (
+        <iframe
+          src={url}
+          style={{ width: "92vw", height: "92vh", border: "none", borderRadius: 8 }}
+          onClick={(e) => e.stopPropagation()}
+        />
+      ) : (
+        <img
+          src={url}
+          alt="Documento ampliado"
+          onClick={(e) => e.stopPropagation()}
+          style={{ maxWidth: "92vw", maxHeight: "92vh", objectFit: "contain",
+                   borderRadius: 8, cursor: "default" }}
+        />
+      )}
     </div>
   );
 }
@@ -134,6 +155,22 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         body: JSON.stringify({ acao, ...form }),
       });
       if (!resp.ok) throw new Error("Erro ao salvar.");
+      onSalvo();
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const handleReprocessar = async () => {
+    setSalvando(true);
+    setErro("");
+    try {
+      const resp = await fetch(`${API_URL()}/api/v1/documentos/${docId}/reprocessar`, {
+        method: "POST",
+      });
+      if (!resp.ok) throw new Error("Erro ao solicitar reprocessamento.");
       onSalvo();
     } catch (e) {
       setErro(e.message);
@@ -189,26 +226,50 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         <div className="slip" style={{ padding: 0, overflow: "hidden" }}>
           {doc.foto_url ? (
             <div style={{ position: "relative" }}>
-              <img
-                src={doc.foto_url}
-                alt="Documento fiscal"
-                style={{ width: "100%", display: "block", maxHeight: 520, objectFit: "contain",
-                         background: "#eef1ef", cursor: "zoom-in" }}
-                onClick={() => setZoom(true)}
-              />
-              <button
-                onClick={() => setZoom(true)}
-                title="Ampliar"
-                style={{
-                  position: "absolute", bottom: 10, right: 10,
-                  background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
-                  borderRadius: 8, padding: "6px 10px", cursor: "pointer",
-                  display: "flex", alignItems: "center", gap: 5,
-                  fontSize: 12, fontWeight: 500, color: "#4b5567",
-                }}
-              >
-                <ZoomIn size={14} /> Ampliar
-              </button>
+              {(() => {
+                const isPdf = (doc.foto_url && doc.foto_url.toLowerCase().includes(".pdf")) ||
+                              (doc.filename && doc.filename.toLowerCase().includes(".pdf"));
+                return isPdf ? (
+                  <iframe
+                    src={doc.foto_url}
+                    style={{ width: "100%", height: "520px", border: "none" }}
+                  />
+                ) : (
+                  <img
+                    src={doc.foto_url}
+                    alt="Documento fiscal"
+                    style={{ width: "100%", display: "block", maxHeight: 520, objectFit: "contain",
+                             background: "#eef1ef", cursor: "zoom-in" }}
+                    onClick={() => setZoom(true)}
+                  />
+                );
+              })()}
+              <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => { const w = window.open(doc.foto_url, '_blank'); if (w) { w.onload = () => w.print(); } }}
+                  title="Imprimir"
+                  style={{
+                    background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
+                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 12, fontWeight: 500, color: "#4b5567",
+                  }}
+                >
+                  <Printer size={14} /> Imprimir
+                </button>
+                <button
+                  onClick={() => setZoom(true)}
+                  title="Ampliar"
+                  style={{
+                    background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
+                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 12, fontWeight: 500, color: "#4b5567",
+                  }}
+                >
+                  <ZoomIn size={14} /> Ampliar
+                </button>
+              </div>
             </div>
           ) : (
             <div style={{ padding: 40, textAlign: "center", color: "#7a8496" }}>
@@ -273,6 +334,20 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
               {salvando ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />}
               Confirmar
             </button>
+            {doc.status === "erro" && (
+              <button
+                onClick={handleReprocessar}
+                disabled={salvando}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  border: "1px solid #4b5567", background: "transparent",
+                  color: "#4b5567", borderRadius: 9, padding: "11px 16px",
+                  fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+                }}
+              >
+                <RefreshCw size={15} /> Reprocessar OCR
+              </button>
+            )}
             <button
               onClick={() => handleAcao("rejeitar")}
               disabled={salvando}
@@ -305,14 +380,22 @@ export default function ValidarDocumentos() {
   const carregar = useCallback(() => {
     setLoading(true);
     setErro("");
-    fetch(`${API_URL()}/api/v1/validacao/documentos?status=${filtro}&limit=50`)
+    fetch(`${API_URL()}/api/v1/validacao/documentos?status=todos&limit=100`)
       .then((r) => r.json())
       .then(setDocs)
       .catch(() => setErro("Não foi possível carregar os documentos."))
       .finally(() => setLoading(false));
-  }, [filtro]);
+  }, []);
 
   useEffect(() => { carregar(); }, [carregar]);
+
+  const total = docs.length;
+  const aguardando = docs.filter(d => d.status === "extraido").length;
+  const validados = docs.filter(d => d.status === "validado").length;
+  const conciliados = docs.filter(d => d.status === "conciliado").length;
+  const erros = docs.filter(d => d.status === "erro").length;
+
+  const docsFiltrados = docs.filter(d => filtro === "todos" || d.status === filtro);
 
   if (docAberto) {
     return (
@@ -335,31 +418,28 @@ export default function ValidarDocumentos() {
       </div>
 
       {/* Filtros + reload */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         {[
-          { value: "extraido",  label: "Aguardando" },
-          { value: "validado",  label: "Validados"  },
-          { value: "erro",      label: "Com erro"   },
-          { value: "todos",     label: "Todos"      },
-        ].map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFiltro(f.value)}
-            style={{
-              border: "1px solid",
-              borderColor: filtro === f.value ? "var(--ledger)" : "var(--line)",
-              background: filtro === f.value ? "var(--ledger-tint)" : "var(--paper-card)",
-              color: filtro === f.value ? "var(--ledger-dark)" : "var(--ink-soft)",
-              borderRadius: 8, padding: "6px 14px",
-              fontSize: 13, fontWeight: 500, cursor: "pointer",
-            }}
-          >{f.label}</button>
+          { label: "Todos", value: "todos", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },
+          { label: "Aguardando", value: "extraido", valor: aguardando, bg: "#f5ead9", cor: "#b8875a" },
+          { label: "Validados", value: "validado", valor: validados, bg: "#e4efe9", cor: "#21503e" },
+          { label: "Conciliados", value: "conciliado", valor: conciliados, bg: "#e0f2fe", cor: "#0369a1" },
+          { label: "Com erro", value: "erro", valor: erros, bg: "#f6e6e1", cor: "#b3452f" },
+        ].map(item => (
+          <div key={item.value} onClick={() => setFiltro(item.value)} style={{
+            background: item.bg, borderRadius: 10, padding: "10px 16px",
+            border: "1px solid var(--line)", minWidth: 100, cursor: "pointer",
+            opacity: filtro === item.value ? 1 : 0.6,
+          }}>
+            <p style={{ margin: 0, fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--slate)", fontWeight: 600 }}>{item.label}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: item.cor, fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
+          </div>
         ))}
         <button
           className="icon-btn"
           onClick={carregar}
           title="Atualizar"
-          style={{ marginLeft: "auto" }}
+          style={{ marginLeft: "auto", alignSelf: "flex-start", marginTop: 8 }}
         >
           <RefreshCw size={16} />
         </button>
@@ -380,14 +460,14 @@ export default function ValidarDocumentos() {
       )}
 
       {/* Lista vazia */}
-      {!loading && !erro && docs.length === 0 && (
+      {!loading && !erro && docsFiltrados.length === 0 && (
         <div className="slip" style={{ textAlign: "center", padding: 48, color: "var(--slate)" }}>
           Nenhum documento {filtro === "extraido" ? "aguardando validação" : "encontrado"}.
         </div>
       )}
 
       {/* Tabela */}
-      {!loading && docs.length > 0 && (
+      {!loading && docsFiltrados.length > 0 && (
         <div className="slip" style={{ padding: 0, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -403,12 +483,12 @@ export default function ValidarDocumentos() {
               </tr>
             </thead>
             <tbody>
-              {docs.map((doc, i) => (
+              {docsFiltrados.map((doc, i) => (
                 <tr
                   key={doc.id}
                   onClick={() => setDocAberto(doc.id)}
                   style={{
-                    borderBottom: i < docs.length - 1 ? "1px solid var(--line)" : "none",
+                    borderBottom: i < docsFiltrados.length - 1 ? "1px solid var(--line)" : "none",
                     cursor: "pointer",
                     transition: "background 0.1s",
                   }}

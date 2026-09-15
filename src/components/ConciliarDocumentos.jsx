@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
 /*  Ícones inline                                                       */
@@ -34,6 +35,9 @@ function X({ size = 18, strokeWidth = 2 }) {
 }
 function Layers({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+}
+function Download({ size = 18, strokeWidth = 2 }) {
+  return <svg {...iconBase(size, strokeWidth)}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></svg>;
 }
 
 /* ------------------------------------------------------------------ */
@@ -254,6 +258,25 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
   const confirmarSugestao = async () => {
     setSalvando(true);
     await onConciliar([trans.id], [trans.sugestao.id], "automatica");
+    
+    if (trans.sugestao.conta_debito_codigo) {
+      try {
+        await fetch(`${API()}/api/classificacao/confirmar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            administradora_id: "1",
+            fornecedor_nome: trans.sugestao.fornecedor,
+            palavra_chave: trans.sugestao.fornecedor,
+            conta_codigo: trans.sugestao.conta_debito_codigo,
+            criada_por_ia: false
+          }),
+        });
+      } catch (e) {
+        console.error("Erro ao salvar regra contábil", e);
+      }
+    }
+    
     setSalvando(false);
   };
 
@@ -332,6 +355,11 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
               <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
                 R$ {formatBRL(trans.sugestao.valor_total)} · Confiança: {Math.round(trans.sugestao.score * 100)}%
               </p>
+              {trans.sugestao.conta_debito_codigo && (
+                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--slate)", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 4 }}>
+                  Conta: <strong>{trans.sugestao.conta_debito_codigo}</strong> - {trans.sugestao.conta_debito_nome}
+                </p>
+              )}
             </div>
           ) : (
             <span style={{ fontSize: 12, color: "var(--slate)" }}>Sem sugestão</span>
@@ -406,10 +434,16 @@ export default function ConciliarDocumentos() {
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [erro, setErro]           = useState("");
+  const [salvandoLote, setSalvandoLote] = useState(false);
+  const [filtroStatus, setFiltroStatus] = useState("Total");
   
   // Lotes N x N
   const [selecionadasTrans, setSelecionadasTrans] = useState(new Set());
   const [modalLoteAberto, setModalLoteAberto] = useState(false);
+
+  // Assumimos que o condomínio ativo deveria vir do contexto.
+  const { selectedCondoId } = useCondo();
+  const condominioAtivo = selectedCondoId; // TODO: Integrar com seletor de condomínio
 
   const carregar = useCallback(() => {
     setLoading(true);
@@ -462,6 +496,39 @@ export default function ConciliarDocumentos() {
     await handleConciliar(Array.from(selecionadasTrans), docsIds, tipo);
   };
 
+  const handleExportarLote = async () => {
+    setSalvandoLote(true);
+    setErro("");
+    try {
+      const resp = await fetch(`${API()}/api/v1/exportacao/lote?condominio_id=${condominioAtivo}`);
+      if (!resp.ok) {
+        const d = await resp.json();
+        setErro(d.detail || "Erro ao exportar lote.");
+        setSalvandoLote(false);
+        return;
+      }
+      const blob = await resp.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      // Pega o nome do header Content-Disposition ou usa fallback
+      const disp = resp.headers.get("Content-Disposition");
+      let filename = `lote_alterdata_${condominioAtivo}.csv`;
+      if (disp && disp.includes("filename=")) {
+        filename = disp.split("filename=")[1].replace(/"/g, "");
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      setErro("Erro de comunicação ao exportar lote.");
+    } finally {
+      setSalvandoLote(false);
+    }
+  };
+
   // Resumo
   const total      = transacoes.length;
   const conciliadas = transacoes.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
@@ -470,6 +537,14 @@ export default function ConciliarDocumentos() {
 
   const selecionadasArr = transacoes.filter(t => selecionadasTrans.has(t.id));
   const valorTotalSelecionadas = selecionadasArr.reduce((acc, t) => acc + Number(t.valor || 0), 0);
+
+  const transacoesFiltradas = transacoes.filter(t => {
+    if (filtroStatus === "Total") return true;
+    if (filtroStatus === "Conciliadas") return t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote";
+    if (filtroStatus === "Sugestões") return t.status_conciliacao === "sugerida";
+    if (filtroStatus === "Pendentes") return t.status_conciliacao === "pendente";
+    return true;
+  });
 
   return (
     <div className="page" style={{ maxWidth: 1100 }}>
@@ -497,9 +572,10 @@ export default function ConciliarDocumentos() {
           { label: "Sugestões", valor: sugeridas, bg: "#f5ead9", cor: "#b8875a" },
           { label: "Pendentes", valor: pendentes, bg: "#f6e6e1", cor: "#b3452f" },
         ].map(item => (
-          <div key={item.label} style={{
+          <div key={item.label} onClick={() => setFiltroStatus(item.label)} style={{
             background: item.bg, borderRadius: 10, padding: "10px 16px",
-            border: "1px solid var(--line)", minWidth: 100,
+            border: "1px solid var(--line)", minWidth: 100, cursor: "pointer",
+            opacity: filtroStatus === item.label ? 1 : 0.6,
           }}>
             <p style={{ margin: 0, fontSize: 10.5, textTransform: "uppercase",
                         letterSpacing: "0.07em", color: "var(--slate)", fontWeight: 600 }}>{item.label}</p>
@@ -533,6 +609,24 @@ export default function ConciliarDocumentos() {
 
         <button className="icon-btn" onClick={carregar} title="Atualizar">
           <RefreshCw size={16} />
+        </button>
+
+        <div style={{ flex: 1 }} />
+        
+        <button 
+          className="btn" 
+          onClick={handleExportarLote} 
+          disabled={salvandoLote || conciliadas === 0}
+          style={{ 
+            display: "flex", alignItems: "center", gap: 6, 
+            background: "var(--ledger)", color: "#fff", 
+            border: "none", fontWeight: 600, padding: "8px 16px", borderRadius: 8,
+            cursor: (salvandoLote || conciliadas === 0) ? "not-allowed" : "pointer",
+            opacity: (salvandoLote || conciliadas === 0) ? 0.7 : 1
+          }}
+        >
+          {salvandoLote ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+          Exportar Lote (Alterdata)
         </button>
       </div>
 
@@ -597,7 +691,7 @@ export default function ConciliarDocumentos() {
               </tr>
             </thead>
             <tbody>
-              {transacoes.map(trans => (
+              {transacoesFiltradas.map(trans => (
                 <LinhaTransacao
                   key={trans.id}
                   trans={trans}
