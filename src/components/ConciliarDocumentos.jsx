@@ -375,7 +375,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         </td>
 
         {/* Ações */}
-        <td style={{ padding: "11px 14px", whiteSpace: "nowrap" }}>
+        <td style={{ padding: "11px 14px", whiteSpace: "nowrap", textAlign: "right" }}>
           {salvando ? (
             <Loader2 size={16} className="spin" />
           ) : isConciliada ? (
@@ -389,7 +389,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
               <Unlink size={13} /> Desfazer {trans.status_conciliacao === "conciliada_em_lote" ? "Lote" : ""}
             </button>
           ) : trans.sugestao ? (
-            <div style={{ display: "flex", gap: 6 }}>
+            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
               <button
                 onClick={confirmarSugestao}
                 style={{ border: "none", background: "var(--ledger)", color: "#fff",
@@ -412,7 +412,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
               onClick={() => setModalAberto(true)}
               style={{ border: "1px solid var(--ledger)", background: "transparent",
                        color: "var(--ledger)", borderRadius: 7, padding: "5px 10px",
-                       cursor: "pointer", display: "flex", alignItems: "center", gap: 4,
+                       cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
                        fontSize: 12, fontWeight: 600 }}
             >
               <Link2 size={13} /> Vincular
@@ -676,18 +676,17 @@ export default function ConciliarDocumentos() {
       )}
 
       {!loading && transacoes.length > 0 && (
-        <div className="slip" style={{ padding: 0, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className="slip" style={{ padding: 0, width: "100%", overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 950 }}>
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
                 <th style={{ width: 40 }}></th>
-                {["Data", "Descrição / Banco", "Valor", "Documento vinculado", "Status", "Ação"].map(h => (
-                  <th key={h} style={{
-                    padding: "10px 14px", textAlign: "left",
-                    fontSize: 10.5, textTransform: "uppercase",
-                    letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600,
-                  }}>{h}</th>
-                ))}
+                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 80 }}>Data</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 100 }}>Valor</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, minWidth: 250 }}>Documento Vinculado</th>
+                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 90 }}>Status</th>
+                <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, minWidth: 120 }}>Ação</th>
               </tr>
             </thead>
             <tbody>

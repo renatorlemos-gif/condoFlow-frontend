@@ -20,6 +20,8 @@ export default function BalanceteUploader() {
       return;
     }
 
+    console.log("Arquivo selecionado:", file, "Tamanho:", file?.size);
+
     setLoading(true);
     setError(null);
     setResult(null);
@@ -95,6 +97,7 @@ export default function BalanceteUploader() {
                 <li key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #eee' }}>
                   <strong>Fornecedor:</strong> {item.fornecedor_nome} <br />
                   <strong>Conta:</strong> {item.conta_codigo || 'N/A'} <br />
+                  <strong>Descrição:</strong> {item.conta_descricao || '—'} <br />
                   <strong>Valor:</strong> R$ {item.valor_referencia.toFixed(2)}
                 </li>
               ))}

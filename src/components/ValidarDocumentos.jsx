@@ -139,6 +139,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           data_pagamento:  d.data_pagamento  || "",
           valor_total:     d.valor_total     ?? "",
           descricao:       d.descricao       || "",
+          conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
         });
       })
       .catch(() => setErro("Não foi possível carregar o documento."))
@@ -302,17 +303,41 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             />
           </div>
 
-          {/* Sugestão contábil (somente leitura por enquanto) */}
+          <div className="field" style={{ marginBottom: 16 }}>
+            <span className="field__label">Conta Contábil (Débito)</span>
+            <input
+              type="text"
+              className="input"
+              value={form.conta_codigo ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
+            />
+          </div>
+
+          {/* Sugestão contábil */}
           {doc.sugestao_contabil && (
             <>
-              <h2 className="section-title">Sugestão contábil (IA)</h2>
+              <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                Sugestão Contábil
+                {doc.sugestao_contabil.origem_sugestao === "regra_de_para" && (
+                  <span style={{ fontSize: 11, background: "#e4efe9", color: "#2e6b52", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
+                    🟢 Sugerido pelo Histórico
+                  </span>
+                )}
+                {doc.sugestao_contabil.origem_sugestao === "gemini_inferencia" && (
+                  <span style={{ fontSize: 11, background: "#fff4d6", color: "#b38200", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
+                    🪄 Sugerido pela IA
+                  </span>
+                )}
+              </h2>
               <div className="suggestion-card" style={{ marginBottom: 16 }}>
                 <p><strong>Débito:</strong> {doc.sugestao_contabil.conta_debito_codigo} — {doc.sugestao_contabil.conta_debito_nome}</p>
                 <p><strong>Crédito:</strong> {doc.sugestao_contabil.conta_credito_codigo} — {doc.sugestao_contabil.conta_credito_nome}</p>
                 <p><strong>Histórico:</strong> {doc.sugestao_contabil.historico_sugerido}</p>
-                <span className="suggestion-card__confidence">
-                  Confiança da IA: {((doc.sugestao_contabil.score_confianca || 0) * 100).toFixed(0)}%
-                </span>
+                {doc.sugestao_contabil.score_confianca != null && (
+                  <span className="suggestion-card__confidence">
+                    Confiança da IA: {((doc.sugestao_contabil.score_confianca || 0) * 100).toFixed(0)}%
+                  </span>
+                )}
               </div>
             </>
           )}
