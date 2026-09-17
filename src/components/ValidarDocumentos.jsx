@@ -139,7 +139,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           data_pagamento:  d.data_pagamento  || "",
           valor_total:     d.valor_total     ?? "",
           descricao:       d.descricao       || "",
-          conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
+          conta_codigo:    d.sugestao_contabil?.conta_debito_codigo ? d.sugestao_contabil.conta_debito_codigo + " - " + (d.sugestao_contabil.conta_debito_nome || "") : "",
         });
       })
       .catch(() => setErro("Não foi possível carregar o documento."))
@@ -153,9 +153,12 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acao, ...form }),
+        body: JSON.stringify({ acao, ...form, conta_codigo: form.conta_codigo ? form.conta_codigo.split(" - ")[0].trim() : "" }),
       });
-      if (!resp.ok) throw new Error("Erro ao salvar.");
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.detail || "Erro ao salvar.");
+      }
       onSalvo();
     } catch (e) {
       setErro(e.message);
@@ -313,34 +316,6 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             />
           </div>
 
-          {/* Sugestão contábil */}
-          {doc.sugestao_contabil && (
-            <>
-              <h2 className="section-title" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                Sugestão Contábil
-                {doc.sugestao_contabil.origem_sugestao === "regra_de_para" && (
-                  <span style={{ fontSize: 11, background: "#e4efe9", color: "#2e6b52", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
-                    🟢 Sugerido pelo Histórico
-                  </span>
-                )}
-                {doc.sugestao_contabil.origem_sugestao === "gemini_inferencia" && (
-                  <span style={{ fontSize: 11, background: "#fff4d6", color: "#b38200", padding: "2px 8px", borderRadius: 6, fontWeight: 600 }}>
-                    🪄 Sugerido pela IA
-                  </span>
-                )}
-              </h2>
-              <div className="suggestion-card" style={{ marginBottom: 16 }}>
-                <p><strong>Débito:</strong> {doc.sugestao_contabil.conta_debito_codigo} — {doc.sugestao_contabil.conta_debito_nome}</p>
-                <p><strong>Crédito:</strong> {doc.sugestao_contabil.conta_credito_codigo} — {doc.sugestao_contabil.conta_credito_nome}</p>
-                <p><strong>Histórico:</strong> {doc.sugestao_contabil.historico_sugerido}</p>
-                {doc.sugestao_contabil.score_confianca != null && (
-                  <span className="suggestion-card__confidence">
-                    Confiança da IA: {((doc.sugestao_contabil.score_confianca || 0) * 100).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-            </>
-          )}
 
           {erro && (
             <div className="feedback feedback--error" style={{ marginBottom: 12 }}>
@@ -399,7 +374,7 @@ export default function ValidarDocumentos() {
   const [docs, setDocs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [erro, setErro]         = useState("");
-  const [filtro, setFiltro]     = useState("extraido");
+  const [filtro, setFiltro]     = useState("todos");
   const [docAberto, setDocAberto] = useState(null);
 
   const carregar = useCallback(() => {
