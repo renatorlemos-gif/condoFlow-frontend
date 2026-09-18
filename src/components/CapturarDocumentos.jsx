@@ -64,18 +64,14 @@ function Trash2({ size = 18, strokeWidth = 2, className }) {
   );
 }
 
-function ChevronLeft({ size = 18, strokeWidth = 2, className }) {
+function FileText({ size = 18, strokeWidth = 2, className }) {
   return (
     <svg {...iconBase(size, strokeWidth)} className={className}>
-      <path d="m15 18-6-6 6-6"/>
-    </svg>
-  );
-}
-
-function ChevronRight({ size = 18, strokeWidth = 2, className }) {
-  return (
-    <svg {...iconBase(size, strokeWidth)} className={className}>
-      <path d="m9 18 6-6-6-6"/>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+      <line x1="16" y1="13" x2="8" y2="13" />
+      <line x1="16" y1="17" x2="8" y2="17" />
+      <polyline points="10 9 9 9 8 9" />
     </svg>
   );
 }
@@ -90,11 +86,9 @@ export default function CapturarDocumentos() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previews, setPreviews] = useState({});
   const [status, setStatus] = useState("idle"); // idle | uploading | success | error
-  const [uploadIndex, setUploadIndex] = useState(0); // Para saber qual está enviando (1 of N)
   const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
   const inputRef = useRef(null);
-  const appendInputRef = useRef(null);
   const abortRef = useRef(null);
 
   // Criar URLs para pre-visualizar as imagens
@@ -103,7 +97,7 @@ export default function CapturarDocumentos() {
     files.forEach((f) => {
       // Usar f.name + file size para ter uma key mais unica
       const key = f.name + f.size;
-      if (!newPreviews[key] && f.type.startsWith("image/")) {
+      if (!newPreviews[key]) {
         newPreviews[key] = URL.createObjectURL(f);
       }
     });
@@ -122,13 +116,11 @@ export default function CapturarDocumentos() {
     if (abortRef.current) { abortRef.current.abort(); abortRef.current = null; }
     Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
     setFiles([]);
-    setPreviews({});
     setCurrentIndex(0);
-    setUploadIndex(0);
+    setPreviews({});
     setStatus("idle");
     setErrorMsg("");
     if (inputRef.current) inputRef.current.value = "";
-    if (appendInputRef.current) appendInputRef.current.value = "";
   }, [previews]);
 
   const addFiles = useCallback((newFilesList) => {
@@ -148,9 +140,9 @@ export default function CapturarDocumentos() {
     addFiles(e.dataTransfer.files);
   }, [addFiles]);
 
-  const removeCurrent = () => {
+  const removeFile = (index) => {
     const newFiles = [...files];
-    const removed = newFiles.splice(currentIndex, 1)[0];
+    const removed = newFiles.splice(index, 1)[0];
     setFiles(newFiles);
     
     // Revogar a url pra evitar memory leak
@@ -164,10 +156,8 @@ export default function CapturarDocumentos() {
       }
     }
     
-    if (currentIndex >= newFiles.length && newFiles.length > 0) {
-      setCurrentIndex(newFiles.length - 1);
-    } else if (newFiles.length === 0) {
-      setCurrentIndex(0);
+    if (currentIndex >= newFiles.length) {
+      setCurrentIndex(Math.max(0, newFiles.length - 1));
     }
   };
 
@@ -175,7 +165,6 @@ export default function CapturarDocumentos() {
     if (files.length === 0) return;
     setStatus("uploading");
     setErrorMsg("");
-    setUploadIndex(0);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -208,8 +197,6 @@ export default function CapturarDocumentos() {
     }
   };
 
-  const currentFile = files[currentIndex];
-  const currentKey = currentFile ? currentFile.name + currentFile.size : "";
   const isUploading = status === "uploading";
 
   return (
@@ -249,81 +236,90 @@ export default function CapturarDocumentos() {
             </div>
           </label>
         ) : files.length > 0 ? (
-          <div className="dropzone dropzone--filled dropzone--preview" style={{ position: "relative", overflow: "hidden", padding: 0 }}>
-             <div className="dropzone__preview-wrap" style={{ position: "relative", width: "100%", minHeight: "200px", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              {previews[currentKey]
-                ? <img src={previews[currentKey]} alt="Prévia" className="dropzone__img" style={{ maxHeight: "400px", objectFit: "contain" }} />
-                : (
-                  <div className="dropzone__pdf-badge" style={{ padding: "20px" }}>
-                    <span className="dropzone__filename">{currentFile?.name}</span>
-                  </div>
-                )
-              }
-              
-              {/* Overlay de uploading */}
-              {isUploading && (
-                <div className="dropzone__overlay">
-                  <Loader2 size={28} className="spin" />
-                  <span>Enviando {uploadIndex} de {files.length}…</span>
-                </div>
-              )}
-              
-              {/* Overlay de sucesso */}
-              {status === "success" && (
-                <div className="dropzone__overlay dropzone__overlay--success">
-                  <CheckCircle2 size={28} />
-                  <span>Enviado!</span>
-                </div>
-              )}
-
-              {/* Setas do Carrossel */}
-              {!isUploading && status !== "success" && files.length > 1 && (
-                <>
-                  <button 
+          <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '16px', padding: '16px 0' }}>
+              <div style={{ position: 'relative', width: '100%', height: '384px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {/* Botão Anterior */}
+                {files.length > 1 && (
+                  <button
                     type="button"
-                    className="dropzone__nav-btn dropzone__nav-btn--prev"
-                    style={{ position: 'absolute', left: 10, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', padding: '8px', cursor: 'pointer', zIndex: 10 }}
-                    onClick={(e) => { e.preventDefault(); setCurrentIndex((curr) => curr > 0 ? curr - 1 : files.length - 1); }}
+                    onClick={() => setCurrentIndex((prev) => (prev > 0 ? prev - 1 : files.length - 1))}
+                    style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
                   >
-                    <ChevronLeft size={20} />
+                    <span style={{ fontWeight: 'bold', color: '#334155' }}>&lt;</span>
                   </button>
-                  <button 
-                    type="button"
-                    className="dropzone__nav-btn dropzone__nav-btn--next"
-                    style={{ position: 'absolute', right: 10, background: 'rgba(0,0,0,0.5)', color: 'white', border: 'none', borderRadius: '50%', padding: '8px', cursor: 'pointer', zIndex: 10 }}
-                    onClick={(e) => { e.preventDefault(); setCurrentIndex((curr) => curr < files.length - 1 ? curr + 1 : 0); }}
-                  >
-                    <ChevronRight size={20} />
-                  </button>
-                </>
-              )}
-             </div>
+                )}
 
-             {/* Footer do Carrossel */}
-             {!isUploading && status !== "success" && (
-               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', padding: '10px 15px', background: '#f9f9f9', borderTop: '1px solid #eee', boxSizing: 'border-box' }}>
-                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                   <span style={{ fontSize: '14px', fontWeight: 500, color: '#333' }}>{currentIndex + 1} de {files.length}</span>
-                   <button type="button" onClick={removeCurrent} style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '13px' }}>
-                     <Trash2 size={14} /> Remover atual
-                   </button>
-                 </div>
-                 <div style={{ position: 'relative' }}>
-                   <button type="button" style={{ display: 'flex', alignItems: 'center', gap: '5px', background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }} onClick={() => appendInputRef.current?.click()}>
-                     + Adicionar Mais
-                   </button>
-                   <input
-                     ref={appendInputRef}
-                     type="file"
-                     accept=".pdf,.png,.jpg,.jpeg"
-                     capture="environment"
-                     multiple
-                     style={{ display: 'none' }}
-                     onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }}
-                   />
-                 </div>
-               </div>
-             )}
+                {/* Conteúdo Atual */}
+                {(() => {
+                  const file = files[currentIndex];
+                  if (!file) return null;
+                  const key = file.name + file.size;
+                  let previewUrl = previews[key] || "";
+                  if (file.type === "application/pdf" && previewUrl) {
+                    previewUrl += "#navpanes=0&view=FitH";
+                  }
+                  return (
+                    <object data={previewUrl} type={file.type} className="w-full h-96" style={{ width: '100%', height: '100%', objectFit: 'contain' }}>
+                      <p style={{ padding: '16px', color: '#64748b' }}>Seu navegador não suporta a visualização deste arquivo ({file.name}).</p>
+                    </object>
+                  );
+                })()}
+
+                {/* Botão Próximo */}
+                {files.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentIndex((prev) => (prev < files.length - 1 ? prev + 1 : 0))}
+                    style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, background: 'rgba(255,255,255,0.9)', border: '1px solid #e2e8f0', borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}
+                  >
+                    <span style={{ fontWeight: 'bold', color: '#334155' }}>&gt;</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Informações e Controles */}
+              <div style={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '14px', fontWeight: 500, color: '#334155' }}>
+                  {files[currentIndex]?.name} <span style={{ color: '#94a3b8', fontWeight: 400 }}>({currentIndex + 1} de {files.length})</span>
+                </div>
+                
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  {!isUploading && status !== "success" && (
+                    <button
+                      type="button"
+                      onClick={() => removeFile(currentIndex)}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#fee2e2', color: '#ef4444', border: 'none', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
+                      title="Remover arquivo atual"
+                    >
+                      <Trash2 size={16} /> <span className="hidden sm:inline">Remover Atual</span>
+                    </button>
+                  )}
+                  
+                  {!isUploading && status !== "success" && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                      <UploadCloud size={16} /> <span className="hidden sm:inline">Adicionar mais</span>
+                      <input
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg"
+                        capture="environment"
+                        multiple
+                        style={{ display: 'none' }}
+                        onChange={(e) => addFiles(e.target.files)}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Overlay de uploading */}
+            {isUploading && (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#2563eb', fontWeight: 500, padding: '16px 0' }}>
+                <Loader2 size={24} className="spin" />
+                <span>Enviando {files.length} arquivo(s)…</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="dropzone dropzone--filled dropzone--preview" style={{ position: "relative" }}>

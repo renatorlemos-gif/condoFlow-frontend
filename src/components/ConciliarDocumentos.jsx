@@ -279,11 +279,11 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
   };
 
   const rowBgColor = {
-    conciliada: "#f4f9f6",
-    conciliada_em_lote: "#eff6ff",
-    sugerida: "#fffbeb",
-    pendente: "transparent",
-  }[trans.status_conciliacao] || "transparent";
+    conciliada: "#ecfdf5", // verde claro (emerald-50)
+    conciliada_em_lote: "#ecfdf5",
+    sugerida: "#fff7ed", // laranja claro (orange-50)
+    pendente: "#fef2f2", // vermelho claro (red-50)
+  }[trans.status_conciliacao] || "#fef2f2";
 
   const isConciliada = trans.status_conciliacao === "conciliada" || trans.status_conciliacao === "conciliada_em_lote";
   
@@ -424,13 +424,28 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
 /* ------------------------------------------------------------------ */
 export default function ConciliarDocumentos() {
   const meses = mesesDisponiveis();
-  const [mesAno, setMesAno]       = useState(meses[0].val);
-  const [banco, setBanco]         = useState("");
+
+  // Recupera filtros do sessionStorage
+  const savedFiltros = useMemo(() => {
+    const saved = sessionStorage.getItem('conciliacao_filtros');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { return {}; }
+    }
+    return {};
+  }, []);
+
+  const [mesAno, setMesAno]       = useState(savedFiltros.mesAno || meses[0].val);
+  const [banco, setBanco]         = useState(savedFiltros.banco || "");
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading]     = useState(true);
   const [erro, setErro]           = useState("");
   const [salvandoLote, setSalvandoLote] = useState(false);
-  const [filtroStatus, setFiltroStatus] = useState("Total");
+  const [filtroStatus, setFiltroStatus] = useState(savedFiltros.filtroStatus || "Total");
+
+  // Salva filtros sempre que mudarem
+  useEffect(() => {
+    sessionStorage.setItem('conciliacao_filtros', JSON.stringify({ mesAno, banco, filtroStatus }));
+  }, [mesAno, banco, filtroStatus]);
   
   // Lotes N x N
   const [selecionadasTrans, setSelecionadasTrans] = useState(new Set());

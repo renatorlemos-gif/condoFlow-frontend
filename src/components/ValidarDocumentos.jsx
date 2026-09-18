@@ -41,6 +41,9 @@ function AlertTriangle({ size = 18, strokeWidth = 2 }) {
 function RefreshCw({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>;
 }
+function ExternalLink({ size = 18, strokeWidth = 2 }) {
+  return <svg {...iconBase(size, strokeWidth)}><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>;
+}
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                             */
@@ -152,18 +155,14 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
           });
           
-          if (d.administradora_id) {
-            try {
-              const resPlano = await fetch(`${API_URL()}/api/plano-contas?administradora_id=${d.administradora_id}`);
-              if (resPlano.ok) {
-                const planoData = await resPlano.json();
-                const contas = planoData.data || [];
-                contas.sort((a, b) => (a.descricao || "").localeCompare(b.descricao || ""));
-                if (ativo) setPlanoContas(contas);
-              }
-            } catch (errPlano) {
-              console.error("Erro ao carregar plano de contas", errPlano);
+          try {
+            const resPlano = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/contas-sugeridas`);
+            if (resPlano.ok) {
+              const contas = await resPlano.json();
+              if (ativo) setPlanoContas(contas);
             }
+          } catch (errPlano) {
+            console.error("Erro ao carregar contas sugeridas", errPlano);
           }
         }
       } catch (err) {
@@ -279,18 +278,22 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                 );
               })()}
               <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 8 }}>
-                <button
-                  onClick={() => { const w = window.open(doc.foto_url, '_blank'); if (w) { w.onload = () => w.print(); } }}
-                  title="Imprimir"
-                  style={{
-                    background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
-                    borderRadius: 8, padding: "6px 10px", cursor: "pointer",
-                    display: "flex", alignItems: "center", gap: 5,
-                    fontSize: 12, fontWeight: 500, color: "#4b5567",
-                  }}
-                >
-                  <Printer size={14} /> Imprimir
-                </button>
+                {doc.url_sefaz_qr && (
+                  <a
+                    href={doc.url_sefaz_qr}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Abrir Original Sefaz"
+                    style={{
+                      background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
+                      borderRadius: 8, padding: "6px 10px", cursor: "pointer",
+                      display: "flex", alignItems: "center", gap: 5,
+                      fontSize: 12, fontWeight: 500, color: "#4b5567", textDecoration: "none"
+                    }}
+                  >
+                    <ExternalLink size={14} /> Abrir Sefaz
+                  </a>
+                )}
                 <button
                   onClick={() => setZoom(true)}
                   title="Ampliar"
@@ -344,11 +347,30 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
               onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
             >
               <option value="">Selecione uma conta...</option>
-              {planoContas.map(conta => (
-                <option key={conta.codigo} value={conta.codigo}>
-                  {conta.codigo} - {conta.descricao}
-                </option>
-              ))}
+              {planoContas.length > 0 && planoContas.some(c => c.similarity !== null && c.similarity !== undefined) ? (
+                <>
+                  <optgroup label="Mais Prováveis">
+                    {planoContas.slice(0, 5).map(conta => (
+                      <option key={`prov-${conta.codigo}`} value={conta.codigo}>
+                        {conta.codigo} - {conta.descricao} {conta.similarity ? `(${(conta.similarity * 100).toFixed(1)}%)` : ''}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Outras Contas">
+                    {planoContas.slice(5).map(conta => (
+                      <option key={`outras-${conta.codigo}`} value={conta.codigo}>
+                        {conta.codigo} - {conta.descricao}
+                      </option>
+                    ))}
+                  </optgroup>
+                </>
+              ) : (
+                planoContas.map(conta => (
+                  <option key={`normal-${conta.codigo}`} value={conta.codigo}>
+                    {conta.codigo} - {conta.descricao}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 
