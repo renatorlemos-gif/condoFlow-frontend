@@ -70,12 +70,12 @@ export default function BalanceteUploader() {
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.detail || 'Erro ao gerar regras via IA');
+        throw new Error(errData.detail || 'Erro ao processar Plano de Contas via IA');
       }
 
       const data = await response.json();
       setResult({ type: 'rules', ...data });
-      alert(`Sucesso! Foram geradas/atualizadas ${data.processados} regras.`);
+      alert(`Sucesso! Foram processados/atualizados ${data.processados} contextos.`);
     } catch (err) {
       setError(err.message);
       alert(`Erro: ${err.message}`);
@@ -127,7 +127,7 @@ export default function BalanceteUploader() {
               cursor: (loading || loadingRules) ? 'not-allowed' : 'pointer'
             }}
           >
-            {loadingRules ? 'Gerando...' : 'Gerar Regras via IA'}
+            {loadingRules ? 'Gerando...' : 'Gerar Contexto Semântico via IA'}
           </button>
         </div>
       </div>
@@ -157,7 +157,7 @@ export default function BalanceteUploader() {
       
       {result && result.type === 'rules' && (
         <div>
-          <h3 style={{ color: '#28a745' }}>Regras processadas: {result.processados} (Erros: {result.erros})</h3>
+          <h3 style={{ color: '#28a745' }}>Contas processadas: {result.processados} (Erros: {result.erros})</h3>
           <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #eee', padding: '10px', borderRadius: '4px' }}>
             <ul style={{ listStyleType: 'none', padding: 0, margin: 0 }}>
               {result.detalhes?.map((item, idx) => (

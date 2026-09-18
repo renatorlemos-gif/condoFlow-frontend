@@ -266,8 +266,6 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             administradora_id: "1",
-            fornecedor_nome: trans.sugestao.fornecedor,
-            palavra_chave: trans.sugestao.fornecedor,
             conta_codigo: trans.sugestao.conta_debito_codigo,
             criada_por_ia: false
           }),
@@ -280,12 +278,12 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
     setSalvando(false);
   };
 
-  const statusStyle = {
-    conciliada: { bg: "#e4efe9", color: "#21503e", label: "Conciliada" },
-    conciliada_em_lote: { bg: "#dbeafe", color: "#1e40af", label: "Agrupada (Lote)" },
-    sugerida:   { bg: "#f5ead9", color: "#b8875a", label: "Sugestão"  },
-    pendente:   { bg: "#f6e6e1", color: "#b3452f", label: "Pendente"  },
-  }[trans.status_conciliacao] || {};
+  const rowBgColor = {
+    conciliada: "#f4f9f6",
+    conciliada_em_lote: "#eff6ff",
+    sugerida: "#fffbeb",
+    pendente: "transparent",
+  }[trans.status_conciliacao] || "transparent";
 
   const isConciliada = trans.status_conciliacao === "conciliada" || trans.status_conciliacao === "conciliada_em_lote";
   
@@ -303,23 +301,23 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
           onFechar={() => setModalAberto(false)}
         />
       )}
-      <tr style={{ borderBottom: "1px solid var(--line)", background: selecionada ? "var(--ledger-tint)" : "transparent" }}>
+      <tr style={{ borderBottom: "1px solid var(--line)", background: selecionada ? "var(--ledger-tint)" : rowBgColor }}>
         {/* Checkbox */}
-        <td style={{ padding: "11px 14px", width: 40, textAlign: "center" }}>
+        <td style={{ padding: "11px 4px 11px 10px", textAlign: "center" }}>
           {!isConciliada && (
             <input type="checkbox" checked={selecionada} onChange={onToggleSelec} />
           )}
         </td>
         
         {/* Transação */}
-        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace" }}>
+        <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace" }}>
           {formatDate(trans.data_transacao)}
         </td>
-        <td style={{ padding: "11px 14px", fontSize: 13, color: "var(--ink)", maxWidth: 220 }}>
-          <span style={{ display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word" }}>
+          <span style={{ display: "block", wordBreak: "break-word" }}>
             {trans.descricao || "—"}
           </span>
-          <span style={{ fontSize: 11, color: "var(--slate)", textTransform: "capitalize" }}>{trans.banco}</span>
+          <span style={{ fontSize: 11, color: "var(--slate)", textTransform: "capitalize", wordBreak: "break-word" }}>{trans.banco}</span>
         </td>
         <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 13,
                      fontWeight: 600, color: trans.tipo === "credito" ? "var(--ledger)" : "var(--ink)",
@@ -327,97 +325,94 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
           {trans.tipo === "debito" ? "−" : "+"}R$ {formatBRL(trans.valor)}
         </td>
 
-        {/* Documento vinculado */}
-        <td style={{ padding: "11px 14px" }}>
-          {trans.status_conciliacao === "conciliada_em_lote" ? (
-            <div>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
-                Agrupado: {trans.documentos_conciliados?.length} documentos
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--slate)" }}>
-                Lote ID: {trans.lote_id}
-              </p>
-            </div>
-          ) : trans.status_conciliacao === "conciliada" && trans.documentos_conciliados?.length > 0 ? (
-            <div>
-              <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>
-                {trans.documentos_conciliados[0].fornecedor || "Fornecedor não identificado"}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
-                R$ {formatBRL(trans.documentos_conciliados[0].valor)}
-              </p>
-            </div>
-          ) : trans.sugestao ? (
-            <div style={{ background: "var(--brass-tint)", borderRadius: 8, padding: "6px 10px" }}>
-              <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
-                {trans.sugestao.fornecedor || "Fornecedor não identificado"}
-              </p>
-              <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
-                R$ {formatBRL(trans.sugestao.valor_total)} · Confiança: {Math.round(trans.sugestao.score * 100)}%
-              </p>
-              {trans.sugestao.conta_debito_codigo && (
-                <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--slate)", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 4 }}>
-                  Conta: <strong>{trans.sugestao.conta_debito_codigo}</strong> - {trans.sugestao.conta_debito_nome}
+        {/* Documento vinculado & Ações */}
+        <td style={{ padding: "11px 14px", wordBreak: "break-word" }}>
+          <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+            {trans.status_conciliacao === "conciliada_em_lote" ? (
+              <div>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>
+                  Agrupado: {trans.documentos_conciliados?.length} documentos
                 </p>
+                <p style={{ margin: "2px 0 0", fontSize: 10, color: "var(--slate)" }}>
+                  Lote ID: {trans.lote_id}
+                </p>
+              </div>
+            ) : trans.status_conciliacao === "conciliada" && trans.documentos_conciliados?.length > 0 ? (
+              <div>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)", wordBreak: "break-word" }}>
+                  {trans.documentos_conciliados[0].fornecedor || "Fornecedor não identificado"}
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
+                  R$ {formatBRL(trans.documentos_conciliados[0].valor)}
+                </p>
+              </div>
+            ) : trans.sugestao ? (
+              <div style={{ background: "var(--brass-tint)", borderRadius: 8, padding: "6px 10px" }}>
+                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)", wordBreak: "break-word" }}>
+                  {trans.sugestao.fornecedor || "Fornecedor não identificado"}
+                </p>
+                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
+                  R$ {formatBRL(trans.sugestao.valor_total)} · Confiança: {Math.round(trans.sugestao.score * 100)}%
+                </p>
+                {trans.sugestao.conta_debito_codigo && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--slate)", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 4, wordBreak: "break-word" }}>
+                    Conta: <strong>{trans.sugestao.conta_debito_codigo}</strong> - {trans.sugestao.conta_debito_nome}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <span style={{ fontSize: 12, color: "var(--slate)" }}>Sem sugestão</span>
+            )}
+            </div>
+
+            {/* Ações */}
+            <div style={{ display: "flex", gap: 6, flexShrink: 0, alignItems: "center" }}>
+              {salvando ? (
+                <Loader2 size={16} className="spin" />
+              ) : isConciliada ? (
+                <button
+                  onClick={() => onDesfazer(estornoId, trans.status_conciliacao === "conciliada_em_lote")}
+                  title={trans.status_conciliacao === "conciliada_em_lote" ? "Desfazer Lote" : "Desfazer conciliação"}
+                  style={{ border: "1px solid #eabbb0", background: "#f6e6e1",
+                           borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                           color: "#b3452f" }}
+                >
+                  <Unlink size={15} />
+                </button>
+              ) : trans.sugestao ? (
+                <>
+                  <button
+                    onClick={confirmarSugestao}
+                    title="Confirmar sugestão"
+                    style={{ border: "1px solid #c6e0d3", background: "#e4efe9", color: "#21503e",
+                             borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                  >
+                    <CheckCircle2 size={15} />
+                  </button>
+                  <button
+                    onClick={() => setModalAberto(true)}
+                    title="Buscar outro documento"
+                    style={{ border: "1px solid var(--line)", background: "var(--paper)",
+                             borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
+                             color: "var(--ink-soft)" }}
+                  >
+                    <Search size={15} />
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setModalAberto(true)}
+                  title="Vincular documento"
+                  style={{ border: "1px solid var(--ledger)", background: "transparent",
+                           color: "var(--ledger)", borderRadius: 6, width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+                           cursor: "pointer" }}
+                >
+                  <Link2 size={15} />
+                </button>
               )}
             </div>
-          ) : (
-            <span style={{ fontSize: 12, color: "var(--slate)" }}>Sem sugestão</span>
-          )}
-        </td>
-
-        {/* Status */}
-        <td style={{ padding: "11px 14px" }}>
-          <span style={{ background: statusStyle.bg, color: statusStyle.color,
-                         fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "2px 8px", whiteSpace: "nowrap" }}>
-            {statusStyle.label}
-          </span>
-        </td>
-
-        {/* Ações */}
-        <td style={{ padding: "11px 14px", whiteSpace: "nowrap", textAlign: "right" }}>
-          {salvando ? (
-            <Loader2 size={16} className="spin" />
-          ) : isConciliada ? (
-            <button
-              onClick={() => onDesfazer(estornoId, trans.status_conciliacao === "conciliada_em_lote")}
-              title="Desfazer conciliação"
-              style={{ border: "1px solid var(--line)", background: "transparent",
-                       borderRadius: 7, padding: "5px 10px", cursor: "pointer",
-                       color: "var(--slate)", display: "flex", alignItems: "center", gap: 4, fontSize: 12 }}
-            >
-              <Unlink size={13} /> Desfazer {trans.status_conciliacao === "conciliada_em_lote" ? "Lote" : ""}
-            </button>
-          ) : trans.sugestao ? (
-            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-              <button
-                onClick={confirmarSugestao}
-                style={{ border: "none", background: "var(--ledger)", color: "#fff",
-                         borderRadius: 7, padding: "5px 10px", cursor: "pointer",
-                         display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600 }}
-              >
-                <CheckCircle2 size={13} /> Confirmar
-              </button>
-              <button
-                onClick={() => setModalAberto(true)}
-                style={{ border: "1px solid var(--line)", background: "transparent",
-                         borderRadius: 7, padding: "5px 10px", cursor: "pointer",
-                         color: "var(--ink-soft)", fontSize: 12 }}
-              >
-                Trocar
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setModalAberto(true)}
-              style={{ border: "1px solid var(--ledger)", background: "transparent",
-                       color: "var(--ledger)", borderRadius: 7, padding: "5px 10px",
-                       cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 4,
-                       fontSize: 12, fontWeight: 600 }}
-            >
-              <Link2 size={13} /> Vincular
-            </button>
-          )}
+          </div>
         </td>
       </tr>
     </>
@@ -676,17 +671,15 @@ export default function ConciliarDocumentos() {
       )}
 
       {!loading && transacoes.length > 0 && (
-        <div className="slip" style={{ padding: 0, width: "100%", overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, minWidth: 950 }}>
+        <div className="slip" style={{ padding: 0, width: "100%", maxWidth: "100%" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
-                <th style={{ width: 40 }}></th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 80 }}>Data</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 100 }}>Valor</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, minWidth: 250 }}>Documento Vinculado</th>
-                <th style={{ padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, width: 90 }}>Status</th>
-                <th style={{ padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600, minWidth: 120 }}>Ação</th>
+                <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
+                <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
+                <th style={{ width: "38%", padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
+                <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
+                <th style={{ width: "30%", padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Documento Vinculado</th>
               </tr>
             </thead>
             <tbody>

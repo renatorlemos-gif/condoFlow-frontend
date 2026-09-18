@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Ícones inline                                                       */
@@ -55,8 +55,8 @@ function formatBRL(v) {
 
 function statusBadge(status) {
   const map = {
-    pendente:   { label: "Pendente",   bg: "#e4efe9", color: "#2e6b52" },
-    extraindo:  { label: "Extraindo…", bg: "#e4efe9", color: "#2e6b52" },
+    pendente:   { label: "Pendente",   bg: "#eef2ff", color: "#4f46e5", spinner: true },
+    extraindo:  { label: "Extraindo…", bg: "#eef2ff", color: "#4f46e5", spinner: true },
     extraido:   { label: "Aguardando", bg: "#f5ead9", color: "#b8875a" },
     validado:   { label: "Validado",   bg: "#e4efe9", color: "#21503e" },
     conciliado: { label: "Conciliado", bg: "#dde1e0", color: "#4b5567" },
@@ -68,7 +68,11 @@ function statusBadge(status) {
       background: s.bg, color: s.color,
       fontSize: 11, fontWeight: 600, borderRadius: 6,
       padding: "2px 8px", whiteSpace: "nowrap",
-    }}>{s.label}</span>
+      display: "inline-flex", alignItems: "center", gap: 4
+    }}>
+      {s.spinner && <Loader2 size={12} className="spin" />}
+      {s.label}
+    </span>
   );
 }
 
@@ -123,27 +127,53 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
   const [erro, setErro]     = useState("");
   const [zoom, setZoom]     = useState(false);
   const [form, setForm]     = useState({});
+  const [planoContas, setPlanoContas] = useState([]);
 
   useEffect(() => {
-    setLoading(true);
-    fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`)
-      .then((r) => r.json())
-      .then((d) => {
-        setDoc(d);
-        setForm({
-          fornecedor:      d.fornecedor      || "",
-          cnpj_cpf:        d.cnpj_cpf        || "",
-          numero_doc:      d.numero_doc      || "",
-          data_emissao:    d.data_emissao    || "",
-          data_vencimento: d.data_vencimento || "",
-          data_pagamento:  d.data_pagamento  || "",
-          valor_total:     d.valor_total     ?? "",
-          descricao:       d.descricao       || "",
-          conta_codigo:    d.sugestao_contabil?.conta_debito_codigo ? d.sugestao_contabil.conta_debito_codigo + " - " + (d.sugestao_contabil.conta_debito_nome || "") : "",
-        });
-      })
-      .catch(() => setErro("Não foi possível carregar o documento."))
-      .finally(() => setLoading(false));
+    let ativo = true;
+    const fetchDoc = async () => {
+      try {
+        setLoading(true);
+        setErro("");
+        const res = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`);
+        if (!res.ok) throw new Error("Erro na requisição");
+        const d = await res.json();
+        if (ativo) {
+          setDoc(d);
+          setForm({
+            fornecedor:      d.fornecedor      || "",
+            cnpj_cpf:        d.cnpj_cpf        || "",
+            numero_doc:      d.numero_doc      || "",
+            data_emissao:    d.data_emissao    || "",
+            data_vencimento: d.data_vencimento || "",
+            data_pagamento:  d.data_pagamento  || "",
+            valor_total:     d.valor_total     ?? "",
+            descricao:       d.descricao       || "",
+            conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
+          });
+          
+          if (d.administradora_id) {
+            try {
+              const resPlano = await fetch(`${API_URL()}/api/plano-contas?administradora_id=${d.administradora_id}`);
+              if (resPlano.ok) {
+                const planoData = await resPlano.json();
+                const contas = planoData.data || [];
+                contas.sort((a, b) => (a.descricao || "").localeCompare(b.descricao || ""));
+                if (ativo) setPlanoContas(contas);
+              }
+            } catch (errPlano) {
+              console.error("Erro ao carregar plano de contas", errPlano);
+            }
+          }
+        }
+      } catch (err) {
+        if (ativo) setErro("Não foi possível carregar o documento.");
+      } finally {
+        if (ativo) setLoading(false);
+      }
+    };
+    fetchDoc();
+    return () => { ativo = false; };
   }, [docId]);
 
   const handleAcao = async (acao) => {
@@ -153,7 +183,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acao, ...form, conta_codigo: form.conta_codigo ? form.conta_codigo.split(" - ")[0].trim() : "" }),
+        body: JSON.stringify({ acao, ...form }),
       });
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
@@ -308,12 +338,18 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 
           <div className="field" style={{ marginBottom: 16 }}>
             <span className="field__label">Conta Contábil (Débito)</span>
-            <input
-              type="text"
+            <select
               className="input"
               value={form.conta_codigo ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
-            />
+            >
+              <option value="">Selecione uma conta...</option>
+              {planoContas.map(conta => (
+                <option key={conta.codigo} value={conta.codigo}>
+                  {conta.codigo} - {conta.descricao}
+                </option>
+              ))}
+            </select>
           </div>
 
 
@@ -377,17 +413,42 @@ export default function ValidarDocumentos() {
   const [filtro, setFiltro]     = useState("todos");
   const [docAberto, setDocAberto] = useState(null);
 
-  const carregar = useCallback(() => {
-    setLoading(true);
-    setErro("");
-    fetch(`${API_URL()}/api/v1/validacao/documentos?status=todos&limit=100`)
-      .then((r) => r.json())
-      .then(setDocs)
-      .catch(() => setErro("Não foi possível carregar os documentos."))
-      .finally(() => setLoading(false));
+  const isFetchingRef = useRef(false);
+
+  const carregar = useCallback(async () => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/documentos?status=todos&limit=100`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      if (!res.ok) throw new Error("Erro na requisição");
+      const data = await res.json();
+      setDocs(Array.isArray(data) ? data : []);
+      setErro("");
+    } catch (e) {
+      if (e.name === "AbortError") {
+        setErro("A requisição demorou muito para responder.");
+      } else {
+        setErro("Não foi possível carregar os documentos.");
+      }
+    } finally {
+      clearTimeout(timeoutId);
+      isFetchingRef.current = false;
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { carregar(); }, [carregar]);
+  useEffect(() => { 
+    carregar(); 
+    const interval = setInterval(carregar, 10000);
+    return () => clearInterval(interval);
+  }, [carregar]);
 
   const total = docs.length;
   const aguardando = docs.filter(d => d.status === "extraido").length;
@@ -395,13 +456,16 @@ export default function ValidarDocumentos() {
   const conciliados = docs.filter(d => d.status === "conciliado").length;
   const erros = docs.filter(d => d.status === "erro").length;
 
-  const docsFiltrados = docs.filter(d => filtro === "todos" || d.status === filtro);
+  const docsFiltrados = docs.filter(d => 
+    filtro === "todos" ? true :
+    d.status === filtro
+  );
 
   if (docAberto) {
     return (
       <DetalheDocumento
         docId={docAberto}
-        onVoltar={() => setDocAberto(null)}
+        onVoltar={() => { setDocAberto(null); carregar(); }}
         onSalvo={() => { setDocAberto(null); carregar(); }}
       />
     );
@@ -439,9 +503,10 @@ export default function ValidarDocumentos() {
           className="icon-btn"
           onClick={carregar}
           title="Atualizar"
-          style={{ marginLeft: "auto", alignSelf: "flex-start", marginTop: 8 }}
+          disabled={loading}
+          style={{ marginLeft: "auto", alignSelf: "flex-start", marginTop: 8, opacity: loading ? 0.5 : 1, cursor: loading ? "not-allowed" : "pointer" }}
         >
-          <RefreshCw size={16} />
+          <RefreshCw size={16} className={loading ? "spin" : ""} />
         </button>
       </div>
 
