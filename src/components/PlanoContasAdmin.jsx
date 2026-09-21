@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { useCondo } from "../context/CondoContext";
 
 export default function PlanoContasAdmin() {
@@ -118,7 +118,7 @@ export default function PlanoContasAdmin() {
           <div style={{ maxHeight: "400px", overflowY: "auto", marginTop: "1rem" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr style={{ borderBottom: "1px solid #ccc", textAlign: "left" }}>
+                <tr style={{ borderBottom: "1px solid #ccc", textAlign: "center" }}>
                   <th style={{ padding: "8px" }}>Código</th>
                   <th style={{ padding: "8px" }}>Descrição</th>
                   <th style={{ padding: "8px" }}>Tipo</th>

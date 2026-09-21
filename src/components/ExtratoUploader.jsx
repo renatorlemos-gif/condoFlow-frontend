@@ -117,10 +117,10 @@ export default function ExtratoUploader() {
 
   return (
     <div className="page">
-      <div className="page__head">
+      <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Conciliação bancária</span>
         <h1 className="page__title">Processar Extratos</h1>
-        <p className="page__subtitle">
+        <p className="page__subtitle" style={{ margin: "0 auto" }}>
           Envie o extrato do banco e receba a planilha consolidada, pronta para conferência com o
           livro caixa do condomínio.
         </p>
@@ -129,8 +129,9 @@ export default function ExtratoUploader() {
       <div className="slip">
         <div style={{
           display: "flex",
-          justifyContent: "space-between",
+          flexDirection: "column",
           alignItems: "center",
+          gap: "4px",
           padding: "10px 14px",
           background: "var(--paper)",
           border: "1px solid var(--line)",
@@ -139,7 +140,6 @@ export default function ExtratoUploader() {
           fontSize: "12.5px"
         }}>
           <span><strong>Carteira Ativa:</strong> {currentAdm?.nome} &rarr; <strong>{currentCondo?.nome}</strong></span>
-          <span style={{ fontFamily: "monospace", fontSize: "11px", color: "var(--slate)" }}>ID: {selectedCondoId}</span>
         </div>
 
         <div className="slip__row">

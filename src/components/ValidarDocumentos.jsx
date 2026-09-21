@@ -58,11 +58,11 @@ function formatBRL(v) {
 
 function statusBadge(status) {
   const map = {
-    pendente:   { label: "Pendente",   bg: "#eef2ff", color: "#4f46e5", spinner: true },
-    extraindo:  { label: "Extraindo…", bg: "#eef2ff", color: "#4f46e5", spinner: true },
+    pendente:   { label: "Pendente",   bg: "#f3f4f6", color: "#4b5563", spinner: true },
+    extraindo:  { label: "Extraindo…", bg: "#f3f4f6", color: "#4b5563", spinner: true },
     extraido:   { label: "Aguardando", bg: "#f5ead9", color: "#b8875a" },
     validado:   { label: "Validado",   bg: "#e4efe9", color: "#21503e" },
-    conciliado: { label: "Conciliado", bg: "#dde1e0", color: "#4b5567" },
+    conciliado: { label: "Conciliado", bg: "#e0f2fe", color: "#0369a1" },
     erro:       { label: "Erro",       bg: "#f6e6e1", color: "#b3452f" },
   };
   const s = map[status] || { label: status, bg: "#dde1e0", color: "#4b5567" };
@@ -121,6 +121,53 @@ function FotoModal({ url, onClose }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Campo de data com placeholder e picker inteligente                  */
+/* ------------------------------------------------------------------ */
+function CampoData({ value, onChange, placeholder = "Não identificado", style, className }) {
+  const [focused, setFocused] = useState(false);
+  const inputType = (focused || Boolean(value)) ? "date" : "text";
+
+  const handleFocus = (e) => {
+    e.target.type = "date";
+    setFocused(true);
+    if (typeof e.target.showPicker === "function") {
+      try {
+        e.target.showPicker();
+      } catch (_) {}
+    }
+  };
+
+  const handleClick = (e) => {
+    if (typeof e.target.showPicker === "function") {
+      try {
+        e.target.showPicker();
+      } catch (_) {}
+    }
+  };
+
+  const handleBlur = (e) => {
+    setFocused(false);
+    if (!e.target.value) {
+      e.target.type = "text";
+    }
+  };
+
+  return (
+    <input
+      type={inputType}
+      className={`${className || ""} ${!value ? "input--missing" : ""}`.trim()}
+      placeholder={placeholder}
+      style={style}
+      value={value ?? ""}
+      onChange={onChange}
+      onFocus={handleFocus}
+      onClick={handleClick}
+      onBlur={handleBlur}
+    />
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tela de detalhe / validação                                         */
 /* ------------------------------------------------------------------ */
 function DetalheDocumento({ docId, onVoltar, onSalvo }) {
@@ -143,15 +190,33 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         const d = await res.json();
         if (ativo) {
           setDoc(d);
+          
+          const limpaInit = (val) => {
+            if (!val) return "";
+            if (typeof val === "string") {
+              const v = val.trim();
+              if (["null", "none", "undefined", "dd/mm/aaaa", "—", "-", "não identificado", "nao identificado"].includes(v.toLowerCase())) return "";
+              return v;
+            }
+            return val || "";
+          };
+
+          const limpaData = (val) => {
+            const v = limpaInit(val);
+            if (!v) return "";
+            if (v.includes("T")) return v.split("T")[0];
+            return v;
+          };
+
           setForm({
-            fornecedor:      d.fornecedor      || "",
-            cnpj_cpf:        d.cnpj_cpf        || "",
-            numero_doc:      d.numero_doc      || "",
-            data_emissao:    d.data_emissao    || "",
-            data_vencimento: d.data_vencimento || "",
-            data_pagamento:  d.data_pagamento  || "",
-            valor_total:     d.valor_total     ?? "",
-            descricao:       d.descricao       || "",
+            fornecedor:      limpaInit(d.fornecedor),
+            cnpj_cpf:        limpaInit(d.cnpj_cpf),
+            numero_doc:      limpaInit(d.numero_doc),
+            data_emissao:    limpaData(d.data_emissao),
+            data_vencimento: limpaData(d.data_vencimento),
+            data_pagamento:  limpaData(d.data_pagamento),
+            valor_total:     d.valor_total ?? "",
+            descricao:       limpaInit(d.descricao),
             conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
           });
           
@@ -179,10 +244,25 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     setSalvando(true);
     setErro("");
     try {
+      const payload = { acao, ...form };
+      const prepareParaEnvio = (val) => {
+        if (typeof val === "string" && val.trim() === "") return null;
+        return val;
+      };
+
+      payload.fornecedor = prepareParaEnvio(payload.fornecedor);
+      payload.cnpj_cpf = prepareParaEnvio(payload.cnpj_cpf);
+      payload.numero_doc = prepareParaEnvio(payload.numero_doc);
+      payload.data_emissao = prepareParaEnvio(payload.data_emissao);
+      payload.data_vencimento = prepareParaEnvio(payload.data_vencimento);
+      payload.data_pagamento = prepareParaEnvio(payload.data_pagamento);
+      payload.descricao = prepareParaEnvio(payload.descricao);
+      if (payload.valor_total === "") payload.valor_total = null;
+
       const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acao, ...form }),
+        body: JSON.stringify(payload),
       });
       if (!resp.ok) {
         const errData = await resp.json().catch(() => ({}));
@@ -224,17 +304,35 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     </div>
   );
 
-  const campo = (label, key, type = "text") => (
-    <div className="field">
-      <span className="field__label">{label}</span>
-      <input
-        type={type}
-        className="input"
-        value={form[key] ?? ""}
-        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-      />
-    </div>
-  );
+  const campo = (label, key, type = "text", placeholder = "Não identificado") => {
+    const val = form[key] ?? "";
+    const isMissing = !val;
+
+    return (
+      <div className="field">
+        <span className="field__label">{label}</span>
+        {type === "date" ? (
+          <CampoData
+            value={val}
+            onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+            placeholder={placeholder}
+            style={{ textAlign: "center" }}
+            className="input"
+          />
+        ) : (
+          <input
+            type={type}
+            step={type === "number" ? "any" : undefined}
+            className={`input ${isMissing ? "input--missing" : ""}`.trim()}
+            placeholder={placeholder}
+            style={{ textAlign: "center" }}
+            value={val}
+            onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+          />
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="page" style={{ maxWidth: 960 }}>
@@ -320,20 +418,22 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           <h2 className="section-title">Dados extraídos</h2>
 
           <div className="result-grid">
-            {campo("Fornecedor",    "fornecedor")}
-            {campo("CNPJ/CPF",      "cnpj_cpf")}
-            {campo("Nº do documento","numero_doc")}
-            {campo("Valor total (R$)","valor_total", "number")}
-            {campo("Data de emissão", "data_emissao", "date")}
-            {campo("Data de vencimento","data_vencimento","date")}
-            {doc.data_pagamento !== undefined && campo("Data de pagamento","data_pagamento","date")}
+            {campo("Fornecedor",        "fornecedor",      "text",   "Não identificado")}
+            {campo("CNPJ/CPF",          "cnpj_cpf",        "text",   "Não identificado")}
+            {campo("Nº do documento",   "numero_doc",      "text",   "Não identificado")}
+            {campo("Valor total (R$)",  "valor_total",     "number", "Não identificado")}
+            {campo("Data de emissão",   "data_emissao",    "date",   "Não identificado")}
+            {campo("Data de vencimento","data_vencimento", "date",   "Não identificado")}
+            {doc.data_pagamento !== undefined && campo("Data de pagamento","data_pagamento","date", "Não identificado")}
           </div>
 
           <div className="field" style={{ marginBottom: 16 }}>
             <span className="field__label">Descrição</span>
             <textarea
-              className="input textarea"
+              className={`input textarea ${!form.descricao ? "input--missing" : ""}`.trim()}
               rows={2}
+              placeholder="Não identificado"
+              style={{ textAlign: "center" }}
               value={form.descricao ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             />
@@ -343,6 +443,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             <span className="field__label">Conta Contábil (Débito)</span>
             <select
               className="input"
+              style={{ textAlign: "center", textAlignLast: "center" }}
               value={form.conta_codigo ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
             >
@@ -495,10 +596,10 @@ export default function ValidarDocumentos() {
 
   return (
     <div className="page" style={{ maxWidth: 900 }}>
-      <div className="page__head">
+      <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Contabilidade</span>
         <h1 className="page__title">Validar Documentos</h1>
-        <p className="page__subtitle">
+        <p className="page__subtitle" style={{ margin: "0 auto" }}>
           Revise e confirme os dados extraídos automaticamente antes da conciliação.
         </p>
       </div>
@@ -561,7 +662,7 @@ export default function ValidarDocumentos() {
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
                 {["Fornecedor", "Nº Doc", "Data emissão", "Valor (R$)", "Status", ""].map((h) => (
                   <th key={h} style={{
-                    padding: "10px 14px", textAlign: "left",
+                    padding: "10px 14px", textAlign: "center",
                     fontSize: 10.5, textTransform: "uppercase",
                     letterSpacing: "0.06em", color: "var(--slate)",
                     fontWeight: 600,
@@ -570,40 +671,56 @@ export default function ValidarDocumentos() {
               </tr>
             </thead>
             <tbody>
-              {docsFiltrados.map((doc, i) => (
-                <tr
-                  key={doc.id}
-                  onClick={() => setDocAberto(doc.id)}
-                  style={{
-                    borderBottom: i < docsFiltrados.length - 1 ? "1px solid var(--line)" : "none",
-                    cursor: "pointer",
-                    transition: "background 0.1s",
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                >
-                  <td style={{ padding: "11px 14px", fontWeight: 500, color: "var(--ink)" }}>
-                    {doc.fornecedor || <span style={{ color: "var(--slate)" }}>—</span>}
-                  </td>
-                  <td style={{ padding: "11px 14px", color: "var(--ink-soft)" }}>
-                    {doc.numero_doc || "—"}
-                  </td>
-                  <td style={{ padding: "11px 14px", color: "var(--ink-soft)" }}>
-                    {doc.data_emissao
-                      ? new Date(doc.data_emissao + "T00:00:00").toLocaleDateString("pt-BR")
-                      : "—"}
-                  </td>
+              {docsFiltrados.map((doc, i) => {
+                const rowBgColor = {
+                  pendente: "#ffffff",
+                  extraindo: "#ffffff",
+                  extraido: "#fff7ed",
+                  validado: "#ecfdf5",
+                  conciliado: "#f0f9ff",
+                  erro: "#fef2f2",
+                }[doc.status] || "#ffffff";
+
+                return (
+                  <tr
+                    key={doc.id}
+                    onClick={() => setDocAberto(doc.id)}
+                    style={{
+                      borderBottom: i < docsFiltrados.length - 1 ? "1px solid var(--line)" : "none",
+                      cursor: "pointer",
+                      background: rowBgColor,
+                      transition: "background 0.1s",
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper)"}
+                    onMouseLeave={(e) => e.currentTarget.style.background = rowBgColor}
+                  >
+                    <td style={{ padding: "11px 14px", fontWeight: 500, color: "var(--ink)", textAlign: "center" }}>
+                      {doc.fornecedor && doc.fornecedor !== "null" ? doc.fornecedor : <span style={{ color: "var(--slate)" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
+                      {doc.numero_doc && doc.numero_doc !== "null" ? doc.numero_doc : "—"}
+                    </td>
+                    <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
+                      {doc.data_emissao && doc.data_emissao !== "null"
+                        ? (() => {
+                            const raw = doc.data_emissao.includes("T") ? doc.data_emissao : doc.data_emissao + "T00:00:00";
+                            const dt = new Date(raw);
+                            return isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("pt-BR");
+                          })()
+                        : "—"}
+                    </td>
                   <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace",
-                               fontSize: 12, color: "var(--ink)" }}>
+                               fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
                     {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
                   </td>
-                  <td style={{ padding: "11px 14px" }}>{statusBadge(doc.status)}</td>
+                  <td style={{ padding: "11px 14px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
                   <td style={{ padding: "11px 14px", color: "var(--ledger)",
-                               fontWeight: 600, fontSize: 12 }}>
+                               fontWeight: 600, fontSize: 12, textAlign: "center" }}>
                     Abrir →
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>

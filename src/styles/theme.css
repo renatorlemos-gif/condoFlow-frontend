@@ -415,6 +415,20 @@
   font-family: 'IBM Plex Sans', sans-serif;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
+.input::placeholder,
+.textarea::placeholder {
+  color: var(--slate);
+  opacity: 0.7;
+}
+.input--missing::placeholder,
+.input[placeholder="Não identificado"]::placeholder,
+textarea[placeholder="Não identificado"]::placeholder {
+  color: var(--red) !important;
+  opacity: 0.85;
+}
+.input::-webkit-date-and-time-value {
+  text-align: center;
+}
 .input:focus { outline: none; border-color: var(--ledger); box-shadow: 0 0 0 3px var(--ledger-tint); }
 .input--mono { font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: var(--slate); background: var(--paper); }
 .input--mono:disabled { cursor: default; }

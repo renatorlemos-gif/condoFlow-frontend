@@ -70,6 +70,46 @@ function mesesDisponiveis() {
   return meses;
 }
 
+function MultiSelectDropdown({ options, selecionados, onChange }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div style={{ position: "relative" }} onMouseLeave={() => setAberto(false)}>
+      <div 
+        className="input"
+        style={{ width: 180, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
+        onClick={() => setAberto(!aberto)}
+      >
+        <span style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: selecionados.length === 0 ? "var(--slate)" : "var(--ink)" }}>
+          {selecionados.length === 0 ? "Nenhuma" : selecionados.length === options.length ? "Todas categorias" : `${selecionados.length} categorias`}
+        </span>
+        <span style={{ fontSize: 10, marginLeft: 8 }}>▼</span>
+      </div>
+      {aberto && (
+        <div style={{
+          position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 50,
+          background: "var(--paper-card)", border: "1px solid var(--line)", borderRadius: 6,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)", width: 220, display: "flex", flexDirection: "column",
+          maxHeight: 300, overflowY: "auto"
+        }}>
+          {options.map(g => (
+            <label key={g} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", borderBottom: "1px solid var(--line)", color: "var(--ink)", margin: 0 }}>
+              <input 
+                type="checkbox"
+                checked={selecionados.includes(g)}
+                onChange={e => {
+                  if (e.target.checked) onChange([...selecionados, g]);
+                  else onChange(selecionados.filter(x => x !== g));
+                }}
+              />
+              {g}
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Modal de seleção manual de documento (Suporta N x N)               */
 /* ------------------------------------------------------------------ */
@@ -455,12 +495,41 @@ export default function ConciliarDocumentos() {
   const { selectedCondoId } = useCondo();
   const condominioAtivo = selectedCondoId; // TODO: Integrar com seletor de condomínio
 
+  const [excludedCategorias, setExcludedCategorias] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('conciliacao_excluded_cat');
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem('conciliacao_excluded_cat', JSON.stringify(excludedCategorias));
+  }, [excludedCategorias]);
+
+  const categoriasDinamicas = useMemo(() => {
+    const cats = new Set();
+    transacoes.forEach(t => {
+      const c = t.categoria;
+      if (c) cats.add(c);
+      else cats.add("Sem Categoria");
+    });
+    return Array.from(cats).sort();
+  }, [transacoes]);
+
+  const selectedCategorias = categoriasDinamicas.filter(c => !excludedCategorias.includes(c));
+
+  const handleCategoriasChange = (newSelected) => {
+    const newExcluded = categoriasDinamicas.filter(c => !newSelected.includes(c));
+    setExcludedCategorias(newExcluded);
+  };
+
   const carregar = useCallback(() => {
     setLoading(true);
     setErro("");
     setSelecionadasTrans(new Set());
     const params = new URLSearchParams({ mes_ano: mesAno, limit: "200" });
     if (banco) params.set("banco", banco);
+    // Categorias agora são filtradas localmente
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
       .then(r => r.json())
       .then(setTransacoes)
@@ -549,6 +618,9 @@ export default function ConciliarDocumentos() {
   const valorTotalSelecionadas = selecionadasArr.reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
   const transacoesFiltradas = transacoes.filter(t => {
+    const cat = t.categoria || "Sem Categoria";
+    if (categoriasDinamicas.length > 0 && !selectedCategorias.includes(cat)) return false;
+
     if (filtroStatus === "Total") return true;
     if (filtroStatus === "Conciliadas") return t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote";
     if (filtroStatus === "Sugestões") return t.status_conciliacao === "sugerida";
@@ -566,10 +638,10 @@ export default function ConciliarDocumentos() {
         />
       )}
       
-      <div className="page__head">
+      <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Conciliação bancária</span>
         <h1 className="page__title">Conciliar Documentos</h1>
-        <p className="page__subtitle">
+        <p className="page__subtitle" style={{ margin: "0 auto" }}>
           Vincule transações do extrato bancário aos documentos fiscais validados (1x1 ou Agrupado).
         </p>
       </div>
@@ -616,6 +688,12 @@ export default function ConciliarDocumentos() {
           <option value="bradesco">Bradesco</option>
           <option value="santander">Santander</option>
         </select>
+
+        <MultiSelectDropdown 
+          options={categoriasDinamicas} 
+          selecionados={selectedCategorias}
+          onChange={handleCategoriasChange}
+        />
 
         <button className="icon-btn" onClick={carregar} title="Atualizar">
           <RefreshCw size={16} />
@@ -691,10 +769,10 @@ export default function ConciliarDocumentos() {
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
                 <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
-                <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
-                <th style={{ width: "38%", padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
+                <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
+                <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
                 <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
-                <th style={{ width: "30%", padding: "10px 14px", textAlign: "left", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Documento Vinculado</th>
+                <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Documento Vinculado</th>
               </tr>
             </thead>
             <tbody>

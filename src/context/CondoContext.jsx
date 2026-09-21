@@ -15,6 +15,12 @@ export function CondoProvider({ children }) {
     return localStorage.getItem("condoflow_condo_id") || null;
   });
 
+  const [filtrosConciliacao, setFiltrosConciliacao] = useState([]);
+  
+  useEffect(() => {
+    setFiltrosConciliacao([]);
+  }, [selectedCondoId]);
+
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   // Fetch administradoras on mount
@@ -94,6 +100,9 @@ export function CondoProvider({ children }) {
         selectedCondoId,
         currentCondo,
         selectCondo: handleSelectCondo,
+
+        filtrosConciliacao,
+        setFiltrosConciliacao,
       }}
     >
       {children}

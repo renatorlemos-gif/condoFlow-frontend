@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+﻿import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
@@ -201,10 +201,10 @@ export default function CapturarDocumentos() {
 
   return (
     <div className="page">
-      <div className="page__head">
+      <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Digitalização</span>
         <h1 className="page__title">Capturar Documentos</h1>
-        <p className="page__subtitle">
+        <p className="page__subtitle" style={{ margin: "0 auto" }}>
           Fotografe notas fiscais e recibos em lote. Revise as imagens antes de enviar todas de uma vez.
         </p>
       </div>
