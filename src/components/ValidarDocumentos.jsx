@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
 /*  Ícones inline                                                       */
@@ -168,9 +169,91 @@ function CampoData({ value, onChange, placeholder = "Não identificado", style, 
 }
 
 /* ------------------------------------------------------------------ */
+/*  Modal de Conciliação Imediata                                       */
+/* ------------------------------------------------------------------ */
+function ModalConciliacaoImediata({ transacao, docId, onConfirm, onCancel, salvando }) {
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 200,
+        background: "rgba(16,27,48,0.6)", backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center"
+      }}
+    >
+      <div style={{
+        background: "var(--paper)", width: 440, borderRadius: 12,
+        boxShadow: "0 12px 24px rgba(0,0,0,0.15)", padding: 24
+      }}>
+        <h2 style={{ margin: "0 0 8px", fontSize: 18, color: "var(--ink)", fontWeight: 600 }}>
+          Conciliação Sugerida
+        </h2>
+        <p style={{ margin: "0 0 20px", fontSize: 14, color: "var(--slate)" }}>
+          Encontramos uma transação correspondente no extrato bancário.
+        </p>
+
+        <div style={{
+          background: "var(--paper-card)", border: "1px solid var(--line)",
+          borderRadius: 8, padding: 16, marginBottom: 24
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+            <span style={{
+              background: transacao.score >= 0.85 ? "#ecfdf5" : "#fef3c7",
+              color: transacao.score >= 0.85 ? "#065f46" : "#92400e",
+              padding: "4px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600
+            }}>
+              {transacao.score >= 0.85 ? `🟢 Match Forte (${Math.round(transacao.score * 100)}%)` : `🟡 Match Provável (${Math.round(transacao.score * 100)}%)`}
+            </span>
+            <span style={{ fontSize: 13, color: "var(--slate)", fontWeight: 500 }}>
+              {(() => {
+                 if (!transacao.data_transacao) return "";
+                 const raw = transacao.data_transacao.includes("T") ? transacao.data_transacao : transacao.data_transacao + "T00:00:00";
+                 const dt = new Date(raw);
+                 return isNaN(dt.getTime()) ? transacao.data_transacao : dt.toLocaleDateString("pt-BR");
+              })()}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--ink)", fontWeight: 600, marginBottom: 4, wordBreak: "break-word" }}>
+            {transacao.descricao || "Sem descrição"}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+            <span style={{ fontSize: 13, color: "var(--slate)" }}>{transacao.banco?.toUpperCase() || "BANCO"}</span>
+            <span style={{ fontSize: 16, color: "var(--ink)", fontWeight: 600, fontFamily: "IBM Plex Mono, monospace" }}>
+              {formatBRL(transacao.valor)}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+          <button
+            onClick={onCancel}
+            disabled={salvando}
+            style={{
+              padding: "10px 16px", borderRadius: 8, border: "1px solid var(--line)",
+              background: "transparent", color: "var(--ink-soft)", fontWeight: 600, cursor: "pointer",
+              fontSize: 14
+            }}
+          >
+            Pular / Deixar para depois
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={salvando}
+            className="btn-primary"
+            style={{ padding: "10px 16px", fontSize: 14, flex: 1, justifyContent: "center" }}
+          >
+            {salvando ? "Conciliando..." : "Confirmar Conciliação"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Tela de detalhe / validação                                         */
 /* ------------------------------------------------------------------ */
 function DetalheDocumento({ docId, onVoltar, onSalvo }) {
+  const { mesAnoSelecionado, selectedCondoId } = useCondo();
   const [doc, setDoc]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -178,6 +261,8 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
   const [zoom, setZoom]     = useState(false);
   const [form, setForm]     = useState({});
   const [planoContas, setPlanoContas] = useState([]);
+  const [sugestao, setSugestao] = useState(null);
+  const [showToast, setShowToast] = useState("");
 
   useEffect(() => {
     let ativo = true;
@@ -268,10 +353,57 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         const errData = await resp.json().catch(() => ({}));
         throw new Error(errData.detail || "Erro ao salvar.");
       }
+
+      if (acao === "confirmar" && mesAnoSelecionado) {
+        try {
+          const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-documento/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
+          if (sugResp.ok) {
+            const sugData = await sugResp.json();
+            if (sugData.tem_sugestao && sugData.sugestao) {
+              setSugestao(sugData.sugestao);
+              setSalvando(false);
+              return;
+            } else {
+              const [ano, mes] = mesAnoSelecionado.split("-");
+              const date = new Date(ano, parseInt(mes) - 1);
+              const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+              const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
+              setShowToast(`Documento validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
+              setTimeout(() => onSalvo(), 3000);
+              setSalvando(false);
+              return;
+            }
+          }
+        } catch (e) {
+          console.error("Erro ao buscar sugestão", e);
+        }
+      }
+
       onSalvo();
     } catch (e) {
       setErro(e.message);
-    } finally {
+      setSalvando(false);
+    }
+  };
+
+  const handleConfirmarConciliacao = async () => {
+    setSalvando(true);
+    try {
+      const resp = await fetch(`${API_URL()}/api/v1/conciliacao/conciliar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          transacoes_ids: [sugestao.id],
+          documentos_ids: [docId],
+          status: "manual"
+        })
+      });
+      if (!resp.ok) throw new Error("Erro ao conciliar.");
+      
+      setShowToast("Conciliado com sucesso!");
+      setTimeout(() => onSalvo(), 1500);
+    } catch (e) {
+      setErro(e.message);
       setSalvando(false);
     }
   };
@@ -336,6 +468,26 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 
   return (
     <div className="page" style={{ maxWidth: 960 }}>
+      {sugestao && (
+        <ModalConciliacaoImediata
+          transacao={sugestao}
+          docId={docId}
+          salvando={salvando}
+          onConfirm={handleConfirmarConciliacao}
+          onCancel={() => onSalvo()}
+        />
+      )}
+      {showToast && (
+        <div style={{
+          position: "fixed", bottom: 32, right: 32, zIndex: 300,
+          background: "var(--ink)", color: "var(--paper)", padding: "12px 20px",
+          borderRadius: 8, boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+          display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 500
+        }}>
+          <CheckCircle2 size={16} style={{ color: "var(--ledger)" }} />
+          {showToast}
+        </div>
+      )}
       {zoom && doc.foto_url && <FotoModal url={doc.foto_url} onClose={() => setZoom(false)} />}
 
       {/* Cabeçalho */}

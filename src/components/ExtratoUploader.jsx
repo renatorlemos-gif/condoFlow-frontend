@@ -17,7 +17,7 @@ const BANCOS = [
 ];
 
 export default function ExtratoUploader() {
-  const { selectedAdmId, selectedCondoId, currentAdm, currentCondo } = useCondo();
+  const { selectedAdmId, selectedCondoId, currentAdm, currentCondo, recarregarCompetencias } = useCondo();
   const [file, setFile] = useState(null);
   const [banco, setBanco] = useState("bradesco");
   const [status, setStatus] = useState("idle"); // idle | loading | success | error
@@ -107,6 +107,11 @@ export default function ExtratoUploader() {
         when: new Date().toLocaleString("pt-BR"),
       });
       setStatus("success");
+      
+      // Atualiza contexto global de competências após upload
+      if (recarregarCompetencias && selectedCondoId) {
+        recarregarCompetencias(selectedCondoId);
+      }
     } catch (error) {
       setStatus("error");
       setErrorMsg(error.message || "Não foi possível processar o extrato.");

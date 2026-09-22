@@ -3,6 +3,14 @@ import { Building2, ChevronDown, Menu } from "./icons";
 import { useCondo } from "../../context/CondoContext";
 import "../../styles/theme.css";
 
+function formatMesAno(isoString) {
+  if (!isoString) return "";
+  const [yyyy, mm] = isoString.split("-");
+  const date = new Date(Number(yyyy), Number(mm) - 1, 1);
+  const mes = date.toLocaleDateString("pt-BR", { month: "long" });
+  return `📅 ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${yyyy}`;
+}
+
 export default function AppShell({
   pages,
   currentPageId,
@@ -19,6 +27,10 @@ export default function AppShell({
     condominios,
     selectedCondoId,
     selectCondo,
+    competencias,
+    mesAnoSelecionado,
+    loadingCompetencias,
+    selectMesAno,
   } = useCondo();
 
   const adminIds = ["cadastros-basicos", "plano-contas", "balancetes-historicos"];
@@ -151,6 +163,28 @@ export default function AppShell({
                   📍 {c.nome} ({c.cidade || "SP"})
                 </option>
               ))}
+            </select>
+            
+            <span style={{ color: "var(--line)", fontWeight: "bold" }}>/</span>
+            
+            <select
+              className="context-select"
+              value={mesAnoSelecionado || ""}
+              onChange={(e) => selectMesAno(e.target.value)}
+              title="Mês/Ano do Extrato"
+              disabled={loadingCompetencias || competencias.length === 0}
+            >
+              {loadingCompetencias ? (
+                <option value="">Carregando...</option>
+              ) : competencias.length === 0 ? (
+                <option value="">Sem extrato</option>
+              ) : (
+                competencias.map((comp) => (
+                  <option key={comp} value={comp}>
+                    {formatMesAno(comp)}
+                  </option>
+                ))
+              )}
             </select>
           </div>
 

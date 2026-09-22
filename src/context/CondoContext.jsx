@@ -2,8 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 
 const CondoContext = createContext(null);
 
-
-
 export function CondoProvider({ children }) {
   const [administradoras, setAdministradoras] = useState([]);
   const [selectedAdmId, setSelectedAdmId] = useState(() => {
@@ -14,6 +12,10 @@ export function CondoProvider({ children }) {
   const [selectedCondoId, setSelectedCondoId] = useState(() => {
     return localStorage.getItem("condoflow_condo_id") || null;
   });
+
+  const [competencias, setCompetencias] = useState([]);
+  const [mesAnoSelecionado, setMesAnoSelecionado] = useState(null);
+  const [loadingCompetencias, setLoadingCompetencias] = useState(false);
 
   const [filtrosConciliacao, setFiltrosConciliacao] = useState([]);
   
@@ -76,6 +78,40 @@ export function CondoProvider({ children }) {
     fetchCondominios();
   }, [selectedAdmId]);
 
+  const recarregarCompetencias = async (condoId, mesPreferencial = null) => {
+    if (!condoId) {
+      setCompetencias([]);
+      setMesAnoSelecionado(null);
+      return;
+    }
+    setLoadingCompetencias(true);
+    try {
+      const resp = await fetch(`${API_URL}/api/v1/contexto/competencias?condominio_id=${condoId}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        setCompetencias(data.competencias || []);
+        if (mesPreferencial && data.competencias.includes(mesPreferencial)) {
+          setMesAnoSelecionado(mesPreferencial);
+        } else {
+          setMesAnoSelecionado(data.ultima_competencia || null);
+        }
+      } else {
+        setCompetencias([]);
+        setMesAnoSelecionado(null);
+      }
+    } catch (e) {
+      console.error("Erro ao carregar competencias", e);
+      setCompetencias([]);
+      setMesAnoSelecionado(null);
+    } finally {
+      setLoadingCompetencias(false);
+    }
+  };
+
+  useEffect(() => {
+    recarregarCompetencias(selectedCondoId);
+  }, [selectedCondoId]);
+
   const handleSelectAdm = (admId) => {
     setSelectedAdmId(admId);
   };
@@ -83,6 +119,10 @@ export function CondoProvider({ children }) {
   const handleSelectCondo = (condoId) => {
     setSelectedCondoId(condoId);
     localStorage.setItem("condoflow_condo_id", condoId);
+  };
+
+  const selectMesAno = (valor) => {
+    setMesAnoSelecionado(valor);
   };
 
   const currentAdm = administradoras.find((a) => a.id === selectedAdmId) || administradoras[0];
@@ -100,6 +140,12 @@ export function CondoProvider({ children }) {
         selectedCondoId,
         currentCondo,
         selectCondo: handleSelectCondo,
+
+        competencias,
+        mesAnoSelecionado,
+        loadingCompetencias,
+        selectMesAno,
+        recarregarCompetencias,
 
         filtrosConciliacao,
         setFiltrosConciliacao,

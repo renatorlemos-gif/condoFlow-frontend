@@ -388,15 +388,22 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
                 </p>
               </div>
             ) : trans.sugestao ? (
-              <div style={{ background: "var(--brass-tint)", borderRadius: 8, padding: "6px 10px" }}>
-                <p style={{ margin: 0, fontSize: 12, fontWeight: 600, color: "var(--ink)", wordBreak: "break-word" }}>
+              <div style={{ background: "var(--ledger-tint)", borderRadius: 8, padding: "8px 10px" }}>
+                <p style={{ margin: 0, fontSize: 11, fontWeight: 600, color: "var(--ink)", wordBreak: "break-word", marginBottom: 6 }}>
                   {trans.sugestao.fornecedor || "Fornecedor não identificado"}
                 </p>
-                <p style={{ margin: "2px 0 0", fontSize: 11, color: "var(--slate)" }}>
-                  R$ {formatBRL(trans.sugestao.valor_total)} · Confiança: {Math.round(trans.sugestao.score * 100)}%
-                </p>
+                <div style={{ display: "grid", gridTemplateColumns: "max-content 1fr", columnGap: 8, rowGap: 4, fontSize: 11, color: "var(--slate)" }}>
+                  <span style={{ fontWeight: 500 }}>Valor:</span>
+                  <span>R$ {formatBRL(trans.sugestao.valor_total)}</span>
+
+                  <span style={{ fontWeight: 500 }}>Pag.:</span>
+                  <span>{formatDate(trans.sugestao.data_pagamento || trans.sugestao.data_vencimento || trans.sugestao.data_emissao) || "—"}</span>
+
+                  <span style={{ fontWeight: 500 }}>Conf.:</span>
+                  <span>{Math.round(trans.sugestao.score * 100)}%</span>
+                </div>
                 {trans.sugestao.conta_debito_codigo && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "var(--slate)", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 4, wordBreak: "break-word" }}>
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "var(--slate)", borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 6, wordBreak: "break-word" }}>
                     Conta: <strong>{trans.sugestao.conta_debito_codigo}</strong> - {trans.sugestao.conta_debito_nome}
                   </p>
                 )}
@@ -463,8 +470,6 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
 /*  Componente principal                                                */
 /* ------------------------------------------------------------------ */
 export default function ConciliarDocumentos() {
-  const meses = mesesDisponiveis();
-
   // Recupera filtros do sessionStorage
   const savedFiltros = useMemo(() => {
     const saved = sessionStorage.getItem('conciliacao_filtros');
@@ -474,26 +479,24 @@ export default function ConciliarDocumentos() {
     return {};
   }, []);
 
-  const [mesAno, setMesAno]       = useState(savedFiltros.mesAno || meses[0].val);
-  const [banco, setBanco]         = useState(savedFiltros.banco || "");
+  const { selectedCondoId, mesAnoSelecionado } = useCondo();
+  
   const [transacoes, setTransacoes] = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading]     = useState(false);
   const [erro, setErro]           = useState("");
   const [salvandoLote, setSalvandoLote] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState(savedFiltros.filtroStatus || "Total");
 
   // Salva filtros sempre que mudarem
   useEffect(() => {
-    sessionStorage.setItem('conciliacao_filtros', JSON.stringify({ mesAno, banco, filtroStatus }));
-  }, [mesAno, banco, filtroStatus]);
+    sessionStorage.setItem('conciliacao_filtros', JSON.stringify({ filtroStatus }));
+  }, [filtroStatus]);
   
   // Lotes N x N
   const [selecionadasTrans, setSelecionadasTrans] = useState(new Set());
   const [modalLoteAberto, setModalLoteAberto] = useState(false);
 
-  // Assumimos que o condomínio ativo deveria vir do contexto.
-  const { selectedCondoId } = useCondo();
-  const condominioAtivo = selectedCondoId; // TODO: Integrar com seletor de condomínio
+  const condominioAtivo = selectedCondoId;
 
   const [excludedCategorias, setExcludedCategorias] = useState(() => {
     try {
@@ -524,18 +527,21 @@ export default function ConciliarDocumentos() {
   };
 
   const carregar = useCallback(() => {
+    if (!mesAnoSelecionado) {
+      setTransacoes([]);
+      return;
+    }
     setLoading(true);
     setErro("");
     setSelecionadasTrans(new Set());
-    const params = new URLSearchParams({ mes_ano: mesAno, limit: "200" });
-    if (banco) params.set("banco", banco);
+    const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, limit: "200" });
     // Categorias agora são filtradas localmente
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
       .then(r => r.json())
       .then(setTransacoes)
       .catch(() => setErro("Não foi possível carregar as transações."))
       .finally(() => setLoading(false));
-  }, [mesAno, banco]);
+  }, [mesAnoSelecionado]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -646,150 +652,141 @@ export default function ConciliarDocumentos() {
         </p>
       </div>
 
-      {/* Resumo */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
-        {[
-          { label: "Total", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },
-          { label: "Conciliadas", valor: conciliadas, bg: "#e4efe9", cor: "#21503e" },
-          { label: "Sugestões", valor: sugeridas, bg: "#f5ead9", cor: "#b8875a" },
-          { label: "Pendentes", valor: pendentes, bg: "#f6e6e1", cor: "#b3452f" },
-        ].map(item => (
-          <div key={item.label} onClick={() => setFiltroStatus(item.label)} style={{
-            background: item.bg, borderRadius: 10, padding: "10px 16px",
-            border: "1px solid var(--line)", minWidth: 100, cursor: "pointer",
-            opacity: filtroStatus === item.label ? 1 : 0.6,
-          }}>
-            <p style={{ margin: 0, fontSize: 10.5, textTransform: "uppercase",
-                        letterSpacing: "0.07em", color: "var(--slate)", fontWeight: 600 }}>{item.label}</p>
-            <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: item.cor,
-                        fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
+      {!mesAnoSelecionado ? (
+        <div className="slip" style={{ textAlign: "center", padding: "64px 20px", color: "var(--slate)" }}>
+          <AlertTriangle size={48} style={{ margin: "0 auto 16px", color: "var(--line)" }} strokeWidth={1} />
+          <h3 style={{ fontSize: 18, color: "var(--ink)", margin: "0 0 8px" }}>Nenhum extrato processado.</h3>
+          <p style={{ margin: 0, fontSize: 14 }}>Vá até Processar Extratos para enviar o extrato desta carteira.</p>
+        </div>
+      ) : (
+        <>
+          {/* Resumo */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap" }}>
+            {[
+              { label: "Total", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },
+              { label: "Conciliadas", valor: conciliadas, bg: "#e4efe9", cor: "#21503e" },
+              { label: "Sugestões", valor: sugeridas, bg: "#f5ead9", cor: "#b8875a" },
+              { label: "Pendentes", valor: pendentes, bg: "#f6e6e1", cor: "#b3452f" },
+            ].map(item => (
+              <div key={item.label} onClick={() => setFiltroStatus(item.label)} style={{
+                background: item.bg, borderRadius: 10, padding: "10px 16px",
+                border: "1px solid var(--line)", minWidth: 100, cursor: "pointer",
+                opacity: filtroStatus === item.label ? 1 : 0.6,
+              }}>
+                <p style={{ margin: 0, fontSize: 10.5, textTransform: "uppercase",
+                            letterSpacing: "0.07em", color: "var(--slate)", fontWeight: 600 }}>{item.label}</p>
+                <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: item.cor,
+                            fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
 
-      {/* Filtros */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <select
-          value={mesAno}
-          onChange={e => setMesAno(e.target.value)}
-          className="input"
-          style={{ maxWidth: 200 }}
-        >
-          {meses.map(m => <option key={m.val} value={m.val}>{m.label}</option>)}
-        </select>
+          {/* Filtros */}
+          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
+            <MultiSelectDropdown 
+              options={categoriasDinamicas} 
+              selecionados={selectedCategorias}
+              onChange={handleCategoriasChange}
+            />
 
-        <select
-          value={banco}
-          onChange={e => setBanco(e.target.value)}
-          className="input"
-          style={{ maxWidth: 160 }}
-        >
-          <option value="">Todos os bancos</option>
-          <option value="bradesco">Bradesco</option>
-          <option value="santander">Santander</option>
-        </select>
-
-        <MultiSelectDropdown 
-          options={categoriasDinamicas} 
-          selecionados={selectedCategorias}
-          onChange={handleCategoriasChange}
-        />
-
-        <button className="icon-btn" onClick={carregar} title="Atualizar">
-          <RefreshCw size={16} />
-        </button>
-
-        <div style={{ flex: 1 }} />
-        
-        <button 
-          className="btn" 
-          onClick={handleExportarLote} 
-          disabled={salvandoLote || conciliadas === 0}
-          style={{ 
-            display: "flex", alignItems: "center", gap: 6, 
-            background: "var(--ledger)", color: "#fff", 
-            border: "none", fontWeight: 600, padding: "8px 16px", borderRadius: 8,
-            cursor: (salvandoLote || conciliadas === 0) ? "not-allowed" : "pointer",
-            opacity: (salvandoLote || conciliadas === 0) ? 0.7 : 1
-          }}
-        >
-          {salvandoLote ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
-          Exportar Lote (Alterdata)
-        </button>
-      </div>
-
-      {/* Floating Bar para Lote */}
-      {selecionadasTrans.size > 0 && (
-        <div style={{
-          position: "sticky", top: 16, zIndex: 50,
-          background: "var(--ink)", color: "#fff", borderRadius: 12,
-          padding: "12px 20px", marginBottom: 16, display: "flex",
-          justifyContent: "space-between", alignItems: "center",
-          boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
-        }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{selecionadasTrans.size} transaç{selecionadasTrans.size > 1 ? "ões" : "ão"} selecionada{selecionadasTrans.size > 1 ? "s" : ""}</p>
-            <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
-              Total: R$ {formatBRL(valorTotalSelecionadas)}
-            </p>
-          </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setSelecionadasTrans(new Set())} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
-              Cancelar
+            <button className="icon-btn" onClick={carregar} title="Atualizar">
+              <RefreshCw size={16} />
             </button>
-            <button onClick={() => setModalLoteAberto(true)} style={{ background: "var(--ledger)", border: "none", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
-              <Layers size={15}/> Conciliar Agrupado
+
+            <div style={{ flex: 1 }} />
+            
+            <button 
+              className="btn" 
+              onClick={handleExportarLote} 
+              disabled={salvandoLote || conciliadas === 0}
+              style={{ 
+                display: "flex", alignItems: "center", gap: 6, 
+                background: "var(--ledger)", color: "#fff", 
+                border: "none", fontWeight: 600, padding: "8px 16px", borderRadius: 8,
+                cursor: (salvandoLote || conciliadas === 0) ? "not-allowed" : "pointer",
+                opacity: (salvandoLote || conciliadas === 0) ? 0.7 : 1
+              }}
+            >
+              {salvandoLote ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
+              Exportar Lote (Alterdata)
             </button>
           </div>
-        </div>
-      )}
 
-      {/* Tabela */}
-      {loading && (
-        <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
-          <Loader2 size={26} className="spin" />
-        </div>
-      )}
+          {/* Floating Bar para Lote */}
+          {selecionadasTrans.size > 0 && (
+            <div style={{
+              position: "sticky", top: 16, zIndex: 50,
+              background: "var(--ink)", color: "#fff", borderRadius: 12,
+              padding: "12px 20px", marginBottom: 16, display: "flex",
+              justifyContent: "space-between", alignItems: "center",
+              boxShadow: "0 10px 30px rgba(0,0,0,0.15)"
+            }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 600 }}>{selecionadasTrans.size} transaç{selecionadasTrans.size > 1 ? "ões" : "ão"} selecionada{selecionadasTrans.size > 1 ? "s" : ""}</p>
+                <p style={{ margin: "2px 0 0", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>
+                  Total: R$ {formatBRL(valorTotalSelecionadas)}
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => setSelecionadasTrans(new Set())} style={{ background: "transparent", border: "1px solid rgba(255,255,255,0.3)", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13 }}>
+                  Cancelar
+                </button>
+                <button onClick={() => setModalLoteAberto(true)} style={{ background: "var(--ledger)", border: "none", color: "#fff", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", gap: 6, alignItems: "center" }}>
+                  <Layers size={15}/> Conciliar Agrupado
+                </button>
+              </div>
+            </div>
+          )}
 
-      {!loading && erro && (
-        <div className="feedback feedback--error">
-          <AlertTriangle size={15} /><span>{erro}</span>
-        </div>
-      )}
+          {/* Tabela */}
+          {loading && (
+            <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+              <Loader2 size={26} className="spin" />
+            </div>
+          )}
 
-      {!loading && !erro && transacoes.length === 0 && (
-        <div className="slip" style={{ textAlign: "center", padding: 48, color: "var(--slate)" }}>
-          Nenhuma transação encontrada para este período.
-        </div>
-      )}
+          {!loading && erro && (
+            <div className="feedback feedback--error">
+              <AlertTriangle size={15} /><span>{erro}</span>
+            </div>
+          )}
 
-      {!loading && transacoes.length > 0 && (
-        <div className="slip" style={{ padding: 0, width: "100%", maxWidth: "100%" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
-            <thead>
-              <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
-                <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
-                <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
-                <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
-                <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
-                <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Documento Vinculado</th>
-              </tr>
-            </thead>
-            <tbody>
-              {transacoesFiltradas.map(trans => (
-                <LinhaTransacao
-                  key={trans.id}
-                  trans={trans}
-                  onConciliar={handleConciliar}
-                  onDesfazer={handleDesfazer}
-                  selecionada={selecionadasTrans.has(trans.id)}
-                  onToggleSelec={() => toggleSelectTrans(trans.id)}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
+          {!loading && !erro && transacoes.length === 0 && (
+            <div className="slip" style={{ textAlign: "center", padding: 48, color: "var(--slate)" }}>
+              Nenhuma transação encontrada para este período.
+            </div>
+          )}
+
+          {!loading && transacoes.length > 0 && (
+            <div className="slip" style={{ padding: 0, width: "100%", maxWidth: "100%" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                <thead>
+                  <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
+                    <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
+                    <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
+                    <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
+                    <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
+                    <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Documento Vinculado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {transacoesFiltradas.map(trans => (
+                    <LinhaTransacao
+                      key={trans.id}
+                      trans={trans}
+                      onConciliar={handleConciliar}
+                      onDesfazer={handleDesfazer}
+                      selecionada={selecionadasTrans.has(trans.id)}
+                      onToggleSelec={() => toggleSelectTrans(trans.id)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
 }
+
