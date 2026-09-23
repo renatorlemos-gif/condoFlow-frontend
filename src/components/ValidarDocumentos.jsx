@@ -263,6 +263,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
   const [planoContas, setPlanoContas] = useState([]);
   const [sugestao, setSugestao] = useState(null);
   const [showToast, setShowToast] = useState("");
+  const [scanning, setScanning] = useState(false);
 
   useEffect(() => {
     let ativo = true;
@@ -302,6 +303,8 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             data_pagamento:  limpaData(d.data_pagamento),
             valor_total:     d.valor_total ?? "",
             descricao:       limpaInit(d.descricao),
+            chave_acesso:    limpaInit(d.chave_acesso),
+            competencia:     limpaInit(d.competencia),
             conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
           });
           
@@ -342,6 +345,8 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       payload.data_vencimento = prepareParaEnvio(payload.data_vencimento);
       payload.data_pagamento = prepareParaEnvio(payload.data_pagamento);
       payload.descricao = prepareParaEnvio(payload.descricao);
+      payload.chave_acesso = prepareParaEnvio(payload.chave_acesso);
+      payload.competencia = prepareParaEnvio(payload.competencia);
       if (payload.valor_total === "") payload.valor_total = null;
 
       const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
@@ -421,6 +426,46 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       setErro(e.message);
     } finally {
       setSalvando(false);
+    }
+  };
+
+  const handleConsultarOriginal = async () => {
+    setScanning(true);
+    
+    const fallbackSefaz = async () => {
+      const temChave = doc.chave_acesso && (doc.chave_acesso.length === 44 || doc.chave_acesso.length === 50);
+      if (temChave) {
+        try {
+          await navigator.clipboard.writeText(doc.chave_acesso);
+          setShowToast("QR Code ilegível. Chave copiada!");
+          setTimeout(() => setShowToast(""), 3000);
+        } catch (err) {}
+        window.open("https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx", "_blank", "noopener,noreferrer");
+      } else {
+        setShowToast("Documento sem QR Code ou Chave de Acesso válidos.");
+        setTimeout(() => setShowToast(""), 3000);
+      }
+    };
+
+    try {
+      const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/scan-qr`, {
+        method: "POST"
+      });
+      if (!resp.ok) {
+        await fallbackSefaz();
+        return;
+      }
+      const data = await resp.json();
+      
+      if (data.sucesso && data.url) {
+        window.open(data.url, "_blank", "noopener,noreferrer");
+      } else {
+        await fallbackSefaz();
+      }
+    } catch (e) {
+      await fallbackSefaz();
+    } finally {
+      setScanning(false);
     }
   };
 
@@ -527,26 +572,23 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                   />
                 );
               })()}
-              <div style={{ position: "absolute", bottom: 10, right: 10, display: "flex", gap: 8 }}>
-                {doc.url_sefaz_qr && (
-                  <a
-                    href={doc.url_sefaz_qr}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="Abrir Original Sefaz"
-                    style={{
-                      background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
-                      borderRadius: 8, padding: "6px 10px", cursor: "pointer",
-                      display: "flex", alignItems: "center", gap: 5,
-                      fontSize: 12, fontWeight: 500, color: "#4b5567", textDecoration: "none"
-                    }}
-                  >
-                    <ExternalLink size={14} /> Abrir Sefaz
-                  </a>
-                )}
+              <div style={{ position: "absolute", bottom: 15, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 8 }}>
+                <button
+                  onClick={handleConsultarOriginal}
+                  disabled={scanning}
+                  title="Consultar original na Sefaz"
+                  style={{
+                    background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
+                    borderRadius: 8, padding: "6px 10px", cursor: scanning ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", gap: 5,
+                    fontSize: 12, fontWeight: 500, color: scanning ? "#a0aec0" : "#4b5567",
+                  }}
+                >
+                  {scanning ? <Loader2 size={14} className="spin" /> : <span>🧾</span>} Consultar Original
+                </button>
                 <button
                   onClick={() => setZoom(true)}
-                  title="Ampliar"
+                  title="Ampliar documento"
                   style={{
                     background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
                     borderRadius: 8, padding: "6px 10px", cursor: "pointer",
@@ -554,7 +596,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                     fontSize: 12, fontWeight: 500, color: "#4b5567",
                   }}
                 >
-                  <ZoomIn size={14} /> Ampliar
+                  <span>🔍</span> Ampliar
                 </button>
               </div>
             </div>
@@ -573,6 +615,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             {campo("Fornecedor",        "fornecedor",      "text",   "Não identificado")}
             {campo("CNPJ/CPF",          "cnpj_cpf",        "text",   "Não identificado")}
             {campo("Nº do documento",   "numero_doc",      "text",   "Não identificado")}
+            {campo("Competência",       "competencia",     "text",   "MM/YYYY")}
             {campo("Valor total (R$)",  "valor_total",     "number", "Não identificado")}
             {campo("Data de emissão",   "data_emissao",    "date",   "Não identificado")}
             {campo("Data de vencimento","data_vencimento", "date",   "Não identificado")}
@@ -656,7 +699,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                   fontWeight: 600, fontSize: 13.5, cursor: "pointer",
                 }}
               >
-                <RefreshCw size={15} /> Reprocessar OCR
+                <RefreshCw size={15} /> Reprocessar
               </button>
             )}
             <button

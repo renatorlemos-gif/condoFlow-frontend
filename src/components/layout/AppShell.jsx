@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Building2, ChevronDown, Menu } from "./icons";
+import { Building2, ChevronDown, Menu, UserCircle2 } from "./icons";
 import { useCondo } from "../../context/CondoContext";
 import "../../styles/theme.css";
 
@@ -188,14 +188,10 @@ export default function AppShell({
             </select>
           </div>
 
-          <div className="topbar__spacer" />
+          <div className="topbar__spacer" style={{ flexGrow: 1 }} />
 
-          <div className="user-chip">
-            <span className="user-chip__avatar">{user.initials}</span>
-            <span className="user-chip__meta">
-              <span className="user-chip__name">{user.name}</span>
-              <span className="user-chip__role">{user.role}</span>
-            </span>
+          <div className="user-chip" style={{ cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: "50%", background: "#f1f3f5", color: "#4b5567", border: "none" }} title="Menu do Usuário">
+            <UserCircle2 size={20} strokeWidth={2} />
           </div>
         </header>
 
