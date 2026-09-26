@@ -171,7 +171,10 @@ function CampoData({ value, onChange, placeholder = "Não identificado", style, 
 /* ------------------------------------------------------------------ */
 /*  Modal de Conciliação Imediata                                       */
 /* ------------------------------------------------------------------ */
-function ModalConciliacaoImediata({ transacao, docId, onConfirm, onCancel, salvando }) {
+function ModalConciliacaoImediata({ transacao, docId, onConfirm, onValidarDepois, onCancel, salvando, valorDoc }) {
+  const diff = Math.abs(Number(transacao.valor || 0) - Number(valorDoc || 0));
+  const isDivergente = diff > 0.05;
+
   return (
     <div
       style={{
@@ -223,25 +226,38 @@ function ModalConciliacaoImediata({ transacao, docId, onConfirm, onCancel, salva
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
-          <button
-            onClick={onCancel}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <button type="button" onClick={onConfirm}
+            disabled={salvando || isDivergente}
+            className="btn-primary"
+            style={{ padding: "12px 16px", fontSize: 14, justifyContent: "center", width: "100%" }}
+          >
+            {salvando ? "Conciliando..." : isDivergente ? "Valor Divergente (Bloqueado)" : "Confirmar Conciliação"}
+          </button>
+          {isDivergente && (
+            <span style={{ fontSize: 12, color: "var(--ledger)", textAlign: "center", marginTop: "-6px" }}>
+              Dica: Corrija o valor da nota (se erro de leitura) ou valide para conciliar depois.
+            </span>
+          )}
+          <button type="button" onClick={onValidarDepois}
             disabled={salvando}
             style={{
-              padding: "10px 16px", borderRadius: 8, border: "1px solid var(--line)",
-              background: "transparent", color: "var(--ink-soft)", fontWeight: 600, cursor: "pointer",
-              fontSize: 14
+              padding: "12px 16px", borderRadius: 8, border: "1px solid var(--ledger)",
+              background: "transparent", color: "var(--ledger)", fontWeight: 600, cursor: "pointer",
+              fontSize: 14, width: "100%", textAlign: "center"
             }}
           >
-            Pular / Deixar para depois
+            Validar e conciliar depois
           </button>
-          <button
-            onClick={onConfirm}
+          <button type="button" onClick={onCancel}
             disabled={salvando}
-            className="btn-primary"
-            style={{ padding: "10px 16px", fontSize: 14, flex: 1, justifyContent: "center" }}
+            style={{
+              padding: "12px 16px", borderRadius: 8, border: "1px solid var(--line)",
+              background: "transparent", color: "var(--ink-soft)", fontWeight: 600, cursor: "pointer",
+              fontSize: 14, width: "100%", textAlign: "center"
+            }}
           >
-            {salvando ? "Conciliando..." : "Confirmar Conciliação"}
+            Cancelar validação
           </button>
         </div>
       </div>
@@ -261,7 +277,9 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
   const [zoom, setZoom]     = useState(false);
   const [form, setForm]     = useState({});
   const [planoContas, setPlanoContas] = useState([]);
+  const [contasBancarias, setContasBancarias] = useState([]);
   const [sugestao, setSugestao] = useState(null);
+  const [showContaDevedora, setShowContaDevedora] = useState(false);
   const [showToast, setShowToast] = useState("");
   const [scanning, setScanning] = useState(false);
 
@@ -306,15 +324,28 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             chave_acesso:    limpaInit(d.chave_acesso),
             competencia:     limpaInit(d.competencia),
             conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
+            conta_devedora_id: d.conta_devedora_id || "",
           });
           
-          try {
-            const resPlano = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/contas-sugeridas`);
-            if (resPlano.ok) {
-              const contas = await resPlano.json();
-              if (ativo) setPlanoContas(contas);
+                    try {
+            const resCB = await fetch(`${API_URL()}/api/v1/cadastros/contas-bancarias?condominio_id=${d.condominio_id}`);
+            if (resCB.ok) {
+              const cbData = await resCB.json();
+              if (ativo) setContasBancarias(cbData);
             }
-          } catch (errPlano) {
+          } catch (errCB) { console.error(errCB); }
+                      try {
+              const resPlano = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/contas-sugeridas`);
+              if (resPlano.ok) {
+                const contas = await resPlano.json();
+                if (ativo) {
+                  setPlanoContas(contas);
+                  if (!d.sugestao_contabil?.conta_debito_codigo && !d.conta_codigo && contas.length > 0) {
+                    setForm(prev => ({ ...prev, conta_codigo: contas[0].codigo }));
+                  }
+                }
+              }
+            } catch (errPlano) {
             console.error("Erro ao carregar contas sugeridas", errPlano);
           }
         }
@@ -328,53 +359,65 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     return () => { ativo = false; };
   }, [docId]);
 
-  const handleAcao = async (acao) => {
+  const salvarDocumentoPatch = async (acaoPatch, forcedContaDevedoraId = undefined) => {
+    const payload = { acao: acaoPatch, ...form };
+    if (forcedContaDevedoraId !== undefined) {
+        payload.conta_devedora_id = forcedContaDevedoraId;
+    }
+    const prepareParaEnvio = (val) => {
+      if (typeof val === "string" && val.trim() === "") return null;
+      return val;
+    };
+
+    payload.fornecedor = prepareParaEnvio(payload.fornecedor);
+    payload.cnpj_cpf = prepareParaEnvio(payload.cnpj_cpf);
+    payload.numero_doc = prepareParaEnvio(payload.numero_doc);
+    payload.data_emissao = prepareParaEnvio(payload.data_emissao);
+    payload.data_vencimento = prepareParaEnvio(payload.data_vencimento);
+    payload.data_pagamento = prepareParaEnvio(payload.data_pagamento);
+    payload.descricao = prepareParaEnvio(payload.descricao);
+    payload.chave_acesso = prepareParaEnvio(payload.chave_acesso);
+    payload.competencia = prepareParaEnvio(payload.competencia);
+    payload.conta_devedora_id = prepareParaEnvio(payload.conta_devedora_id);
+    if (payload.valor_total === "") payload.valor_total = null;
+
+    const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.detail || "Erro ao salvar.");
+    }
+    return resp;
+  };
+
+  const handleAcao = async (acao, forcedContaDevedoraId = undefined) => {
     setSalvando(true);
     setErro("");
     try {
-      const payload = { acao, ...form };
-      const prepareParaEnvio = (val) => {
-        if (typeof val === "string" && val.trim() === "") return null;
-        return val;
-      };
-
-      payload.fornecedor = prepareParaEnvio(payload.fornecedor);
-      payload.cnpj_cpf = prepareParaEnvio(payload.cnpj_cpf);
-      payload.numero_doc = prepareParaEnvio(payload.numero_doc);
-      payload.data_emissao = prepareParaEnvio(payload.data_emissao);
-      payload.data_vencimento = prepareParaEnvio(payload.data_vencimento);
-      payload.data_pagamento = prepareParaEnvio(payload.data_pagamento);
-      payload.descricao = prepareParaEnvio(payload.descricao);
-      payload.chave_acesso = prepareParaEnvio(payload.chave_acesso);
-      payload.competencia = prepareParaEnvio(payload.competencia);
-      if (payload.valor_total === "") payload.valor_total = null;
-
-      const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.detail || "Erro ao salvar.");
+      if (acao === "rejeitar") {
+        await salvarDocumentoPatch(acao);
+        onSalvo();
+        return;
       }
 
       if (acao === "confirmar" && mesAnoSelecionado) {
+        if (forcedContaDevedoraId !== undefined) {
+          await salvarDocumentoPatch("confirmar", forcedContaDevedoraId);
+          setShowToast("Documento validado com sucesso. A conciliação será feita depois.");
+          setTimeout(() => onSalvo(), 2000);
+          setSalvando(false);
+          return;
+        }
+
         try {
           const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-documento/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
           if (sugResp.ok) {
             const sugData = await sugResp.json();
-            if (sugData.tem_sugestao && sugData.sugestao) {
+            if (sugData.tem_sugestao && sugData.sugestao && !form.conta_devedora_id) {
               setSugestao(sugData.sugestao);
-              setSalvando(false);
-              return;
-            } else {
-              const [ano, mes] = mesAnoSelecionado.split("-");
-              const date = new Date(ano, parseInt(mes) - 1);
-              const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-              const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
-              setShowToast(`Documento validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
-              setTimeout(() => onSalvo(), 3000);
               setSalvando(false);
               return;
             }
@@ -382,8 +425,26 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         } catch (e) {
           console.error("Erro ao buscar sugestão", e);
         }
-      }
 
+        if (!form.conta_devedora_id) {
+          setShowContaDevedora(true);
+          setErro("A automação não encontrou conciliação para este valor. Selecione a Conta Bancária / Pagadora abaixo e confirme novamente para gravar.");
+          setSalvando(false);
+          return;
+        }
+        
+        await salvarDocumentoPatch("confirmar");
+        const [ano, mes] = mesAnoSelecionado.split("-");
+        const date = new Date(ano, parseInt(mes) - 1);
+        const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+        const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
+        setShowToast(`Documento validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
+        setTimeout(() => onSalvo(), 3000);
+        setSalvando(false);
+        return;
+      }
+      
+      await salvarDocumentoPatch(acao);
       onSalvo();
     } catch (e) {
       setErro(e.message);
@@ -391,9 +452,15 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     }
   };
 
-  const handleConfirmarConciliacao = async () => {
+  const handleConfirmarConciliacao = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     setSalvando(true);
     try {
+      await salvarDocumentoPatch("confirmar", sugestao.conta_devedora_id || null);
+
       const resp = await fetch(`${API_URL()}/api/v1/conciliacao/conciliar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -405,10 +472,12 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       });
       if (!resp.ok) throw new Error("Erro ao conciliar.");
       
+      setSugestao(null);
       setShowToast("Conciliado com sucesso!");
-      setTimeout(() => onSalvo(), 1500);
-    } catch (e) {
-      setErro(e.message);
+      setTimeout(() => onSalvo(), 2000);
+      return;
+    } catch (err) {
+      setErro(err.message);
       setSalvando(false);
     }
   };
@@ -518,8 +587,17 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           transacao={sugestao}
           docId={docId}
           salvando={salvando}
+          valorDoc={form.valor_total}
           onConfirm={handleConfirmarConciliacao}
-          onCancel={() => onSalvo()}
+          onValidarDepois={(e) => {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            setSugestao(null);
+            handleAcao("confirmar", sugestao.conta_devedora_id || null);
+          }}
+          onCancel={(e) => {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            setSugestao(null);
+          }}
         />
       )}
       {showToast && (
@@ -670,6 +748,24 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             </select>
           </div>
 
+                    {showContaDevedora && (
+            <div className="field" style={{ marginBottom: 16 }}>
+              <span className="field__label">Conta Bancária / Pagadora</span>
+              <select
+                className="input"
+                style={{ textAlign: "center", textAlignLast: "center", borderColor: "#ef4444" }}
+                value={form.conta_devedora_id ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, conta_devedora_id: e.target.value }))}
+              >
+                <option value="">Selecione a conta que originou o pagamento...</option>
+                {contasBancarias.map(conta => (
+                  <option key={conta.id} value={conta.plano_conta_id}>
+                    {conta.banco} - Ag: {conta.agencia} CC: {conta.conta}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {erro && (
             <div className="feedback feedback--error" style={{ marginBottom: 12 }}>
@@ -923,3 +1019,13 @@ export default function ValidarDocumentos() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+

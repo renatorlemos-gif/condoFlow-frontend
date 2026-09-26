@@ -8,7 +8,8 @@ import ConciliarDocumentos from "./components/ConciliarDocumentos";
 import PlanoContasAdmin from "./components/PlanoContasAdmin";
 import BalanceteUploader from "./components/BalanceteUploader";
 import CadastrosBasicos from "./pages/CadastrosBasicos";
-import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen } from "./components/layout/icons";
+import FechamentoContabil from "./components/FechamentoContabil";
+import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen, Download } from "./components/layout/icons";
 
 const PAGES = [
   { id: "cadastros-basicos",    label: "Cadastros Básicos",    icon: BookOpen,        component: CadastrosBasicos   },
@@ -16,6 +17,7 @@ const PAGES = [
   { id: "capturar-documentos",  label: "Capturar Documentos",  icon: ImageIcon,       component: CapturarDocumentos },
   { id: "validar-documentos",   label: "Validar Documentos",   icon: ClipboardCheck,  component: ValidarDocumentos  },
   { id: "conciliar-documentos", label: "Conciliar Documentos", icon: GitMerge,        component: ConciliarDocumentos},
+  { id: "fechamento-contabil",  label: "Fechamento Contábil",  icon: Download,        component: FechamentoContabil },
   { id: "plano-contas",         label: "Plano de Contas",      icon: BookOpen,        component: PlanoContasAdmin   },
   { id: "balancetes-historicos",label: "Balancetes Históricos",icon: BookOpen,        component: BalanceteUploader  },
 ];

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+﻿import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
@@ -484,7 +484,6 @@ export default function ConciliarDocumentos() {
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading]     = useState(false);
   const [erro, setErro]           = useState("");
-  const [salvandoLote, setSalvandoLote] = useState(false);
   const [filtroStatus, setFiltroStatus] = useState(savedFiltros.filtroStatus || "Total");
 
   // Salva filtros sempre que mudarem
@@ -579,54 +578,22 @@ export default function ConciliarDocumentos() {
   
   const handleVincularLote = async (docsIds, tipo) => {
     await handleConciliar(Array.from(selecionadasTrans), docsIds, tipo);
-  };
-
-  const handleExportarLote = async () => {
-    setSalvandoLote(true);
-    setErro("");
-    try {
-      const resp = await fetch(`${API()}/api/v1/exportacao/lote?condominio_id=${condominioAtivo}`);
-      if (!resp.ok) {
-        const d = await resp.json();
-        setErro(d.detail || "Erro ao exportar lote.");
-        setSalvandoLote(false);
-        return;
-      }
-      const blob = await resp.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      // Pega o nome do header Content-Disposition ou usa fallback
-      const disp = resp.headers.get("Content-Disposition");
-      let filename = `lote_alterdata_${condominioAtivo}.csv`;
-      if (disp && disp.includes("filename=")) {
-        filename = disp.split("filename=")[1].replace(/"/g, "");
-      }
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (e) {
-      setErro("Erro de comunicação ao exportar lote.");
-    } finally {
-      setSalvandoLote(false);
-    }
-  };
+  };const transacoesFiltradasPorCategoria = transacoes.filter(t => {
+    const cat = t.categoria || "Sem Categoria";
+    if (categoriasDinamicas.length > 0 && !selectedCategorias.includes(cat)) return false;
+    return true;
+  });
 
   // Resumo
-  const total      = transacoes.length;
-  const conciliadas = transacoes.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
-  const sugeridas  = transacoes.filter(t => t.status_conciliacao === "sugerida").length;
-  const pendentes  = transacoes.filter(t => t.status_conciliacao === "pendente").length;
+  const total      = transacoesFiltradasPorCategoria.length;
+  const conciliadas = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
+  const sugeridas  = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "sugerida").length;
+  const pendentes  = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "pendente").length;
 
   const selecionadasArr = transacoes.filter(t => selecionadasTrans.has(t.id));
   const valorTotalSelecionadas = selecionadasArr.reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
-  const transacoesFiltradas = transacoes.filter(t => {
-    const cat = t.categoria || "Sem Categoria";
-    if (categoriasDinamicas.length > 0 && !selectedCategorias.includes(cat)) return false;
-
+  const transacoesFiltradas = transacoesFiltradasPorCategoria.filter(t => {
     if (filtroStatus === "Total") return true;
     if (filtroStatus === "Conciliadas") return t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote";
     if (filtroStatus === "Sugestões") return t.status_conciliacao === "sugerida";
@@ -694,22 +661,6 @@ export default function ConciliarDocumentos() {
             </button>
 
             <div style={{ flex: 1 }} />
-            
-            <button 
-              className="btn" 
-              onClick={handleExportarLote} 
-              disabled={salvandoLote || conciliadas === 0}
-              style={{ 
-                display: "flex", alignItems: "center", gap: 6, 
-                background: "var(--ledger)", color: "#fff", 
-                border: "none", fontWeight: 600, padding: "8px 16px", borderRadius: 8,
-                cursor: (salvandoLote || conciliadas === 0) ? "not-allowed" : "pointer",
-                opacity: (salvandoLote || conciliadas === 0) ? 0.7 : 1
-              }}
-            >
-              {salvandoLote ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
-              Exportar Lote (Alterdata)
-            </button>
           </div>
 
           {/* Floating Bar para Lote */}
@@ -789,4 +740,5 @@ export default function ConciliarDocumentos() {
     </div>
   );
 }
+
 

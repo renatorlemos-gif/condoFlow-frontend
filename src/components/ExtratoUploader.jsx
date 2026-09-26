@@ -1,30 +1,35 @@
-import React, { useState, useRef, useCallback } from "react";
-import {
-  UploadCloud,
-  FileCheck2,
-  X,
-  Loader2,
-  CheckCircle2,
-  AlertTriangle,
-} from "./layout/icons";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { UploadCloud, FileCheck2, Loader2, AlertTriangle, CheckCircle2, X } from "./layout/icons";
 import { bytesToSize } from "../utils/format";
 import { useCondo } from "../context/CondoContext";
-
-const BANCOS = [
-  { id: "bradesco", label: "Bradesco" },
-  { id: "santander", label: "Santander" },
-  { id: "itau", label: "Itaú" },
-];
 
 export default function ExtratoUploader() {
   const { selectedAdmId, selectedCondoId, currentAdm, currentCondo, recarregarCompetencias } = useCondo();
   const [file, setFile] = useState(null);
-  const [banco, setBanco] = useState("bradesco");
-  const [status, setStatus] = useState("idle"); // idle | loading | success | error
+  const [contasBancarias, setContasBancarias] = useState([]);
+  const [contaSelecionada, setContaSelecionada] = useState("");
+  const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [lastResult, setLastResult] = useState(null);
   const inputRef = useRef(null);
+
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+  useEffect(() => {
+    if (selectedCondoId) {
+      fetch(`${API_URL}/api/v1/cadastros/contas-bancarias?condominio_id=${selectedCondoId}&ativo=true`)
+        .then(res => res.json())
+        .then(data => {
+          setContasBancarias(data || []);
+          if (data && data.length > 0) {
+            setContaSelecionada(data[0].id);
+          } else {
+            setContaSelecionada("");
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [selectedCondoId, API_URL]);
 
   const resetFeedback = () => {
     setStatus("idle");
@@ -57,25 +62,25 @@ export default function ExtratoUploader() {
       setErrorMsg("Selecione um arquivo de extrato antes de converter.");
       return;
     }
+    if (!contaSelecionada) {
+      setStatus("error");
+      setErrorMsg("Nenhuma conta bancária selecionada.");
+      return;
+    }
+
+    const contaInfo = contasBancarias.find(c => c.id === contaSelecionada);
+    if (!contaInfo) return;
 
     setStatus("loading");
     setErrorMsg("");
 
-    // O arquivo é enviado exatamente como foi selecionado — o front
-    // não renomeia nada no envio.
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("banco", banco);
+    formData.append("banco", contaInfo.banco);
     formData.append("administradora_id", selectedAdmId);
     formData.append("condominio_id", selectedCondoId);
     formData.append("condo_nome", currentCondo.nome);
-
-    // Em desenvolvimento, caminho relativo passa pelo proxy do Vite
-    // (vite.config.js) até http://localhost:8000 — mesmo backend usado
-    // pelo Escanear Documentos. Em produção (Vercel), não existe proxy do
-    // Vite, então é obrigatório definir VITE_API_URL apontando para o
-    // backend publicado.
-    const API_URL = import.meta.env.VITE_API_URL || "";
+    formData.append("conta_bancaria_id", contaSelecionada);
 
     try {
       const response = await fetch(`${API_URL}/api/processar-extrato`, {
@@ -85,8 +90,6 @@ export default function ExtratoUploader() {
 
       if (!response.ok) throw new Error("Erro ao processar o extrato no servidor.");
 
-      // O nome do arquivo baixado é o que o back retornar no header
-      // Content-Disposition. O front não define nem altera esse nome.
       const disposition = response.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
       const filename = match ? decodeURIComponent(match[1]) : "extrato_consolidado.xlsx";
@@ -101,14 +104,8 @@ export default function ExtratoUploader() {
       a.remove();
       window.URL.revokeObjectURL(url);
 
-      setLastResult({
-        name: filename,
-        banco,
-        when: new Date().toLocaleString("pt-BR"),
-      });
       setStatus("success");
       
-      // Atualiza contexto global de competências após upload
       if (recarregarCompetencias && selectedCondoId) {
         recarregarCompetencias(selectedCondoId);
       }
@@ -117,8 +114,6 @@ export default function ExtratoUploader() {
       setErrorMsg(error.message || "Não foi possível processar o extrato.");
     }
   };
-
-  const bancoLabel = BANCOS.find((b) => b.id === banco)?.label ?? banco;
 
   return (
     <div className="page">
@@ -149,26 +144,30 @@ export default function ExtratoUploader() {
 
         <div className="slip__row">
           <div className="field">
-            <span className="field__label">Banco de origem</span>
-            <div className="segmented" role="tablist" aria-label="Banco">
-              {BANCOS.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={banco === b.id}
-                  className={`segmented__item ${banco === b.id ? "segmented__item--active" : ""}`}
-                  onClick={() => {
-                    setBanco(b.id);
-                    resetFeedback();
-                  }}
-                >
-                  {b.label}
-                </button>
+            <span className="field__label">Conta Bancária do Condomínio</span>
+            <select
+              className="input"
+              value={contaSelecionada}
+              onChange={(e) => {
+                setContaSelecionada(e.target.value);
+                resetFeedback();
+              }}
+              style={{ padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", width: "100%", background: "#fff" }}
+            >
+              {contasBancarias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.banco} - Ag: {c.agencia} CC: {c.conta}
+                </option>
               ))}
-            </div>
+              {contasBancarias.length === 0 && <option value="">Nenhuma conta cadastrada</option>}
+            </select>
+            {contasBancarias.length === 0 && (
+              <p style={{ fontSize: "11px", color: "var(--red)", marginTop: "4px" }}>
+                Cadastre as contas bancárias em "Cadastros Básicos" para este condomínio.
+              </p>
+            )}
           </div>
-
+          
           <div className="field">
             <span className="field__label">Nº do lote</span>
             <span className="field__mono">CF-{new Date().getFullYear()}-AUTO</span>
@@ -218,13 +217,27 @@ export default function ExtratoUploader() {
                 }}
                 aria-label="Remover arquivo"
               >
-                <X size={15} />
+                <X size={16} strokeWidth={2.5} />
               </button>
             </div>
           )}
         </label>
 
-        <div className="perf" aria-hidden="true">
+        {status === "error" && (
+          <div className="feedback feedback--error" style={{ marginTop: 12 }}>
+            <AlertTriangle size={15} />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        {status === "success" && (
+          <div className="feedback feedback--success" style={{ marginTop: 12 }}>
+            <CheckCircle2 size={15} />
+            <span>Extrato processado e consolidado com sucesso!</span>
+          </div>
+        )}
+
+        <div className="perf" aria-hidden="true" style={{ marginTop: 16 }}>
           <span className="perf__notch perf__notch--left" />
           <span className="perf__line" />
           <span className="perf__notch perf__notch--right" />
@@ -233,49 +246,23 @@ export default function ExtratoUploader() {
         <div className="slip__actions">
           <button
             type="button"
+            className="btn-primary w-full"
+            disabled={!file || status === "loading" || contasBancarias.length === 0}
             onClick={handleUpload}
-            disabled={status === "loading"}
-            className="btn-primary"
           >
             {status === "loading" ? (
               <>
-                <Loader2 size={16} className="spin" />
-                Processando extrato…
+                <Loader2 size={16} className="spin" /> Processando...
               </>
             ) : (
-              <>Converter e baixar planilha</>
+              "Processar Extrato"
             )}
           </button>
-
-          {status === "success" && (
-            <span className="stamp">
-              <CheckCircle2 size={13} strokeWidth={2.5} />
-              Processado
-            </span>
-          )}
         </div>
-
-        {status === "error" && (
-          <div className="feedback feedback--error">
-            <AlertTriangle size={15} />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-
-        {status === "success" && lastResult && (
-          <div className="feedback feedback--success">
-            <CheckCircle2 size={15} />
-            <span>
-              <strong>{lastResult.name}</strong> gerado às {lastResult.when} · banco {bancoLabel}.
-              O download começou automaticamente.
-            </span>
-          </div>
-        )}
       </div>
-
       <p className="page__footnote">
-        Formatos aceitos: OFX, CSV, PDF ou planilha do extrato. O arquivo é enviado apenas para
-        processamento e não fica armazenado neste painel.
+        Nenhum arquivo é sobrescrito. O extrato original e a planilha gerada
+        ficarão salvos no repositório do condomínio.
       </p>
     </div>
   );

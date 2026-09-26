@@ -140,11 +140,13 @@ export default function PlanoContasAdmin() {
   const [erroModal, setErroModal] = useState("");
   const [toast, setToast] = useState("");
 
-  const carregarPlanoContas = async () => {
+  const API = () => import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+
+  const carregarPlanoContas = React.useCallback(async () => {
     if (!currentAdm) return;
     setCarregandoListagem(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/plano-contas/?administradora_id=${currentAdm.id}`);
+      const res = await fetch(`${API()}/api/v1/plano-contas/?administradora_id=${currentAdm.id}`);
       if (res.ok) {
         const json = await res.json();
         setPlanoContas(json.data || []);
@@ -154,11 +156,11 @@ export default function PlanoContasAdmin() {
     } finally {
       setCarregandoListagem(false);
     }
-  };
+  }, [currentAdm]);
 
   useEffect(() => {
     carregarPlanoContas();
-  }, [currentAdm]);
+  }, [carregarPlanoContas]);
 
   const contasFiltradas = useMemo(() => {
     if (!busca.trim()) return planoContas;
@@ -197,7 +199,7 @@ export default function PlanoContasAdmin() {
     setErroModal("");
 
     try {
-      let url = "http://127.0.0.1:8000/api/v1/plano-contas/";
+      let url = `${API()}/api/v1/plano-contas/`;
       let method = "POST";
       let body = {
         administradora_id: currentAdm.id,
@@ -207,7 +209,7 @@ export default function PlanoContasAdmin() {
       };
 
       if (isEditMode) {
-        url = `http://127.0.0.1:8000/api/v1/plano-contas/${contaSelecionada.id}/contexto`;
+        url = `${API()}/api/v1/plano-contas/${contaSelecionada.id}/contexto`;
         method = "PATCH";
         body = { contexto: dados.contexto };
       }
@@ -238,7 +240,7 @@ export default function PlanoContasAdmin() {
     if (!contaSelecionada) return;
     setLoadingAcao(true);
     try {
-      const res = await fetch(`http://127.0.0.1:8000/api/v1/plano-contas/${contaSelecionada.id}`, {
+      const res = await fetch(`${API()}/api/v1/plano-contas/${contaSelecionada.id}`, {
         method: "DELETE"
       });
 
@@ -365,7 +367,7 @@ export default function PlanoContasAdmin() {
                     </div>
                     {conta.updated_at && (
                       <div style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px", opacity: 0.8 }}>
-                        Últ. atualização: {formatDate(conta.updated_at)}
+                        Últ. atualização: {formatDate(conta.updated_at)} {conta.criada_por_ia ? "por IA" : "por Usuário"}
                       </div>
                     )}
                   </td>
