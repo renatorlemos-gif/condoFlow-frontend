@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { Download, AlertTriangle, Loader2 } from "./layout/icons";
 import { useCondo } from "../context/CondoContext";
 
@@ -15,14 +15,19 @@ export default function FechamentoContabil() {
     if (currentCondo && mesAnoSelecionado) {
       setLoading(true);
       setErro("");
-      fetch(`${API_URL}/api/v1/validacao/documentos?status=validado`)
+      fetch(`${API_URL}/api/v1/validacao/documentos?status=validado,conciliado`)
         .then(res => res.json())
         .then(data => {
-          const docs = data.filter(d => 
-            d.condominio_id === currentCondo.id && 
-            d.competencia === mesAnoSelecionado && 
-            d.plano_contas?.codigo
-          );
+          const docs = data.filter(d => {
+            const dt = d.data_pagamento || d.data_emissao;
+            let refMes = null;
+            if (dt) {
+              refMes = dt.substring(0, 7); // Ex: "2026-08"
+            }
+            return d.condominio_id === currentCondo.id && 
+                   refMes === mesAnoSelecionado && 
+                   (d.conta_devedora_codigo || d.conta_codigo);
+          });
           setDocumentos(docs);
         })
         .catch(err => {
@@ -80,7 +85,7 @@ export default function FechamentoContabil() {
         <span className="page__eyebrow">Fechamento Mensal</span>
         <h1 className="page__title">Fechamento Contábil</h1>
         <p className="page__subtitle" style={{ margin: "0 auto" }}>
-          Gere o lote .TXT Alterdata para o condomínio {currentCondo.nome} (Competência: {mesAnoSelecionado}).
+          Gere o lote .TXT Alterdata para o condomínio {currentCondo.nome} (Período: {mesAnoSelecionado}).
         </p>
       </div>
 
@@ -89,7 +94,7 @@ export default function FechamentoContabil() {
           <div>
             <h3 className="section-title">Lançamentos Qualificados</h3>
             <p style={{ fontSize: "13px", color: "var(--slate)", margin: 0 }}>
-              Exibindo apenas documentos validados com conta devedora informada.
+              Exibindo apenas documentos validados/conciliados com conta devedora informada.
             </p>
           </div>
           <button 
@@ -118,22 +123,28 @@ export default function FechamentoContabil() {
         ) : (
           <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "left" }}>
-                <th style={{ padding: "10px" }}>Fornecedor</th>
-                <th style={{ padding: "10px" }}>Data Pag.</th>
-                <th style={{ padding: "10px" }}>Valor</th>
-                <th style={{ padding: "10px" }}>C. Contábil</th>
-                <th style={{ padding: "10px" }}>C. Devedora</th>
+              <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
+                <th style={{ padding: "10px", textAlign: "center" }}>Fornecedor</th>
+                <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Data Pag.</th>
+                <th style={{ padding: "10px", textAlign: "center" }}>Valor</th>
+                <th style={{ padding: "10px", textAlign: "center" }}>C. Credora</th>
+                <th style={{ padding: "10px", textAlign: "center" }}>C. Devedora</th>
               </tr>
             </thead>
             <tbody>
               {documentos.map(d => (
                 <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={{ padding: "10px" }}>{d.fornecedor}</td>
-                  <td style={{ padding: "10px" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
-                  <td style={{ padding: "10px" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
-                  <td style={{ padding: "10px" }}>{d.conta_codigo || "N/A"}</td>
-                  <td style={{ padding: "10px" }}>{d.plano_contas?.codigo || "N/A"}</td>
+                  <td style={{ padding: "10px", textAlign: "center", maxWidth: "250px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.fornecedor}>
+                    {d.fornecedor}
+                  </td>
+                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
+                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
+                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_codigo ? `${d.conta_codigo} - ${d.conta_credora_descricao || ""}` : "N/A"}>
+                    {d.conta_codigo ? `${d.conta_codigo} - ${d.conta_credora_descricao || ""}` : "N/A"}
+                  </td>
+                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
+                    {d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}
+                  </td>
                 </tr>
               ))}
             </tbody>

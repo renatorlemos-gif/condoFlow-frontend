@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
@@ -81,7 +81,7 @@ function FileText({ size = 18, strokeWidth = 2, className }) {
 /* ------------------------------------------------------------------ */
 
 export default function CapturarDocumentos() {
-  const { selectedAdmId, selectedCondoId } = useCondo();
+  const { selectedAdmId, selectedCondoId, currentAdm, currentCondo } = useCondo();
   const [files, setFiles] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [previews, setPreviews] = useState({});
@@ -172,8 +172,8 @@ export default function CapturarDocumentos() {
 
     try {
       const formData = new FormData();
-      formData.append("administradora_id", selectedAdmId);
-      formData.append("condominio_id", selectedCondoId);
+      formData.append("administradora_id", currentAdm.id);
+      formData.append("condominio_id", currentCondo.id);
       files.forEach(f => formData.append("files", f));
 
       const response = await fetch(`${API_URL}/api/v1/documentos/upload`, {
