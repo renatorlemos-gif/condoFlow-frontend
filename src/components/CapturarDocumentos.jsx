@@ -205,7 +205,7 @@ export default function CapturarDocumentos() {
         <span className="page__eyebrow">Digitalização</span>
         <h1 className="page__title">Capturar Documentos</h1>
         <p className="page__subtitle" style={{ margin: "0 auto" }}>
-          Fotografe notas fiscais e recibos em pasta. Revise as imagens antes de enviar todas de uma vez.
+          Fotografe notas fiscais e recibos da despesa. Revise as imagens antes de enviar a despesa.
         </p>
       </div>
 
@@ -328,7 +328,7 @@ export default function CapturarDocumentos() {
               {status === "success" && (
                 <div className="dropzone__overlay dropzone__overlay--success">
                   <CheckCircle2 size={28} />
-                  <span>Pasta Enviada!</span>
+                  <span>Despesa Enviada!</span>
                 </div>
               )}
              </div>
@@ -343,7 +343,7 @@ export default function CapturarDocumentos() {
           </div>
         )}
 
-        {/* Ações pós-conclusão ou Ação de Enviar Lote */}
+        {/* Ações pós-conclusão ou Ação de Enviar Despesas */}
         <div className="perf" aria-hidden="true" style={{ marginTop: 16 }}>
           <span className="perf__notch perf__notch--left" />
           <span className="perf__line" />
@@ -352,11 +352,11 @@ export default function CapturarDocumentos() {
         <div className="slip__actions">
           {status === "success" || status === "error" ? (
             <button type="button" className="btn-primary" onClick={resetar}>
-              {status === "success" ? "Fotografar nova pasta" : "Tentar novamente"}
+              {status === "success" ? "Capturar nova despesa" : "Tentar novamente"}
             </button>
           ) : (
             <button type="button" className="btn-primary" onClick={enviarPasta} disabled={files.length === 0 || isUploading}>
-              {isUploading ? "Enviando..." : `Enviar Pasta (${files.length} arquivo${files.length !== 1 ? 's' : ''})`}
+              {isUploading ? "Enviando..." : `Enviar Despesa (${files.length} arquivo${files.length !== 1 ? 's' : ''})`}
             </button>
           )}
         </div>

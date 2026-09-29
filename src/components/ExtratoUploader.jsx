@@ -17,12 +17,13 @@ export default function ExtratoUploader() {
 
   useEffect(() => {
     if (selectedCondoId) {
-      fetch(`${API_URL}/api/v1/cadastros/contas-bancarias?condominio_id=${selectedCondoId}&ativo=true`)
+      fetch(`${API_URL}/api/v1/fontes-pagadoras/?condominio_id=${selectedCondoId}`)
         .then(res => res.json())
         .then(data => {
-          setContasBancarias(data || []);
-          if (data && data.length > 0) {
-            setContaSelecionada(data[0].id);
+          const bancarias = Array.isArray(data) ? data.filter(f => f.exige_conciliacao_extrato === true) : [];
+          setContasBancarias(bancarias);
+          if (bancarias.length > 0) {
+            setContaSelecionada(bancarias[0].id);
           } else {
             setContaSelecionada("");
           }
@@ -80,7 +81,7 @@ export default function ExtratoUploader() {
     formData.append("administradora_id", selectedAdmId);
     formData.append("condominio_id", selectedCondoId);
     formData.append("condo_nome", currentCondo.nome);
-    formData.append("conta_bancaria_id", contaSelecionada);
+    formData.append("fonte_pagadora_id", contaSelecionada);
 
     try {
       const response = await fetch(`${API_URL}/api/processar-extrato`, {
@@ -144,7 +145,7 @@ export default function ExtratoUploader() {
 
         <div className="slip__row">
           <div className="field">
-            <span className="field__label">Conta Bancária do Condomínio</span>
+            <span className="field__label">Fonte Pagadora</span>
             <select
               className="input"
               value={contaSelecionada}
@@ -153,17 +154,18 @@ export default function ExtratoUploader() {
                 resetFeedback();
               }}
               style={{ padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", width: "100%", background: "#fff" }}
+              disabled={contasBancarias.length === 0}
             >
               {contasBancarias.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.banco} - Ag: {c.agencia} CC: {c.conta}
+                  {c.nome} ({c.banco} - Ag: {c.agencia} CC: {c.conta})
                 </option>
               ))}
-              {contasBancarias.length === 0 && <option value="">Nenhuma conta cadastrada</option>}
+              {contasBancarias.length === 0 && <option value="">Nenhuma fonte encontrada</option>}
             </select>
             {contasBancarias.length === 0 && (
               <p style={{ fontSize: "11px", color: "var(--red)", marginTop: "4px" }}>
-                Cadastre as contas bancárias em "Cadastros Básicos" para este condomínio.
+                Nenhuma fonte pagadora bancária cadastrada. Acesse Administração &gt; Cadastros Básicos para cadastrar.
               </p>
             )}
           </div>
@@ -175,11 +177,12 @@ export default function ExtratoUploader() {
         </div>
 
         <label
-          className={`dropzone ${dragActive ? "dropzone--active" : ""} ${file ? "dropzone--filled" : ""}`}
-          onDragOver={(e) => handleDrag(e, true)}
-          onDragEnter={(e) => handleDrag(e, true)}
-          onDragLeave={(e) => handleDrag(e, false)}
-          onDrop={handleDrop}
+          className={`dropzone ${dragActive ? "dropzone--active" : ""} ${file ? "dropzone--filled" : ""} ${contasBancarias.length === 0 ? "dropzone--disabled" : ""}`}
+          onDragOver={(e) => { if (contasBancarias.length > 0) handleDrag(e, true); }}
+          onDragEnter={(e) => { if (contasBancarias.length > 0) handleDrag(e, true); }}
+          onDragLeave={(e) => { if (contasBancarias.length > 0) handleDrag(e, false); }}
+          onDrop={(e) => { if (contasBancarias.length > 0) handleDrop(e); }}
+          style={contasBancarias.length === 0 ? { opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" } : {}}
         >
           <input
             ref={inputRef}
@@ -187,6 +190,7 @@ export default function ExtratoUploader() {
             accept=".ofx,.csv,.pdf,.xls,.xlsx,.txt"
             className="dropzone__input"
             onChange={(e) => pickFile(e.target.files?.[0])}
+            disabled={contasBancarias.length === 0}
           />
 
           {!file ? (

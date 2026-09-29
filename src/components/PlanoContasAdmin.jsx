@@ -2,17 +2,17 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useCondo } from "../context/CondoContext";
 
 function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
-  const [codigo, setCodigo] = useState("");
+  const [codigo_contabil, setCodigoContabil] = useState("");
   const [descricao, setDescricao] = useState("");
   const [contexto, setContexto] = useState("");
 
   useEffect(() => {
     if (conta) {
-      setCodigo(conta.codigo || "");
+      setCodigoContabil(conta.codigo_contabil || "");
       setDescricao(conta.descricao || "");
       setContexto(conta.contexto || "");
     } else {
-      setCodigo("");
+      setCodigoContabil("");
       setDescricao("");
       setContexto("");
     }
@@ -40,8 +40,8 @@ function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
           <input 
             type="text" 
             className="input" 
-            value={codigo} 
-            onChange={(e) => setCodigo(e.target.value)}
+            value={codigo_contabil} 
+            onChange={(e) => setCodigoContabil(e.target.value)}
             disabled={isEdit}
             readOnly={isEdit}
             style={isEdit ? { background: "var(--paper)", color: "var(--slate)" } : {}}
@@ -80,8 +80,8 @@ function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
           </button>
           <button 
             className="btn-primary" 
-            onClick={() => onSave({ codigo, descricao, contexto })} 
-            disabled={loading || !codigo || !descricao || !contexto}
+            onClick={() => onSave({ codigo_contabil, descricao, contexto })} 
+            disabled={loading || !codigo_contabil || !descricao || !contexto}
           >
             {loading ? "Vetorizando Regras de IA..." : "Salvar"}
           </button>
@@ -166,7 +166,7 @@ export default function PlanoContasAdmin() {
     if (!busca.trim()) return planoContas;
     const term = busca.toLowerCase();
     return planoContas.filter(
-      c => c.codigo.toLowerCase().includes(term) || c.descricao.toLowerCase().includes(term)
+      c => c.codigo_contabil.toLowerCase().includes(term) || c.descricao.toLowerCase().includes(term)
     );
   }, [planoContas, busca]);
 
@@ -203,7 +203,7 @@ export default function PlanoContasAdmin() {
       let method = "POST";
       let body = {
         administradora_id: currentAdm.id,
-        codigo: dados.codigo,
+        codigo_contabil: dados.codigo_contabil,
         descricao: dados.descricao,
         contexto: dados.contexto
       };
@@ -346,7 +346,7 @@ export default function PlanoContasAdmin() {
                   background: index % 2 === 0 ? "var(--paper-card)" : "#fbfcfc" 
                 }}>
                   <td style={{ padding: "12px 16px", fontWeight: "500", fontFamily: "'IBM Plex Mono', monospace" }}>
-                    {conta.codigo}
+                    {conta.codigo_contabil}
                   </td>
                   <td style={{ padding: "12px 16px", fontWeight: "500", color: "var(--ink)" }}>
                     {conta.descricao}

@@ -1,15 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { useCondo } from "../context/CondoContext";
+import FontesPagadorasAdmin from "../components/FontesPagadorasAdmin";
 
 export default function CadastrosBasicos() {
   const [administradoras, setAdministradoras] = useState([]);
   const [condominios, setCondominios] = useState([]);
-  const [contasBancarias, setContasBancarias] = useState([]);
   const [planoContas, setPlanoContas] = useState([]);
 
   const [formAdmin, setFormAdmin] = useState({ nome: "", cnpj: "" });
   const [formCondo, setFormCondo] = useState({ administradora_id: "", nome: "", cnpj: "", cidade: "", uf: "" });
-  const [formConta, setFormConta] = useState({ condominio_id: "", banco: "", agencia: "", conta: "", plano_conta_id: "" });
 
   const baseURL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : "http://localhost:8000/api/v1";
 
@@ -17,43 +16,16 @@ export default function CadastrosBasicos() {
     carregarDados();
   }, []);
 
-  useEffect(() => {
-    if (formConta.condominio_id) {
-      const condo = condominios.find(c => c.id === formConta.condominio_id);
-      if (condo && condo.administradora_id) {
-        fetch(`${baseURL}/plano-contas?administradora_id=${condo.administradora_id}`)
-          .then(res => res.json())
-          .then(data => {
-            if (data && Array.isArray(data.data)) {
-              setPlanoContas(data.data);
-            } else if (Array.isArray(data)) {
-              setPlanoContas(data);
-            } else {
-              setPlanoContas([]);
-            }
-          })
-          .catch(err => console.error(err));
-      } else {
-        setPlanoContas([]);
-      }
-    } else {
-      setPlanoContas([]);
-    }
-  }, [formConta.condominio_id, condominios]);
-
   const carregarDados = async () => {
     try {
-      const [admRes, conRes, cbRes] = await Promise.all([
+      const [admRes, conRes] = await Promise.all([
         fetch(`${baseURL}/cadastros/administradoras`),
-        fetch(`${baseURL}/cadastros/condominios`),
-        fetch(`${baseURL}/cadastros/contas-bancarias`)
+        fetch(`${baseURL}/cadastros/condominios`)
       ]);
       const admData = await admRes.json();
       const conData = await conRes.json();
-      const cbData = await cbRes.json();
-      setAdministradoras(admData);
-      setCondominios(conData);
-      setContasBancarias(cbData);
+      setAdministradoras(Array.isArray(admData) ? admData : admData?.data || []);
+      setCondominios(Array.isArray(conData) ? conData : conData?.data || []);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     }
@@ -111,215 +83,136 @@ export default function CadastrosBasicos() {
     }
   };
 
-  const handleSalvarConta = async (e) => {
-    e.preventDefault();
-    try {
-      await fetch(`${baseURL}/cadastros/contas-bancarias`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formConta)
-      });
-      setFormConta({ condominio_id: "", banco: "", agencia: "", conta: "", plano_conta_id: "" });
-      carregarDados();
-    } catch (error) {
-      console.error("Erro ao salvar conta bancária:", error);
-    }
-  };
-
-  const handleDeletarConta = async (id) => {
-    try {
-      await fetch(`${baseURL}/cadastros/contas-bancarias/${id}`, {
-        method: "DELETE"
-      });
-      carregarDados();
-    } catch (error) {
-      console.error("Erro ao excluir conta bancária:", error);
-    }
-  };
+  const [activeTab, setActiveTab] = useState("administradoras");
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Cadastros Básicos</h1>
+    <div className="page" style={{ maxWidth: "1000px" }}>
+      <div className="section-header">
+        <h1 className="page__title text-center" style={{ margin: 0, textAlign: "center" }}>Cadastros Básicos</h1>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Administradoras */}
-        <div className="bg-white p-4 shadow rounded">
-          <h2 className="text-xl font-semibold mb-4">Administradoras</h2>
-          <form onSubmit={handleSalvarAdmin} className="mb-4 flex flex-col gap-2">
-            <input 
-              className="border p-2 rounded"
-              placeholder="Nome da Administradora"
-              value={formAdmin.nome}
-              onChange={(e) => setFormAdmin({ ...formAdmin, nome: e.target.value })}
-              required
-            />
-            <input 
-              className="border p-2 rounded"
-              placeholder="CNPJ"
-              value={formAdmin.cnpj}
-              onChange={(e) => setFormAdmin({ ...formAdmin, cnpj: e.target.value })}
-            />
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-              Salvar Administradora
-            </button>
-          </form>
+      <div style={{ display: "flex", gap: "16px", marginBottom: "24px", borderBottom: "1px solid var(--line)" }}>
+        <button 
+          style={{ background: "transparent", border: "none", borderBottom: activeTab === 'administradoras' ? '2px solid var(--primary)' : '2px solid transparent', padding: "8px 16px", cursor: "pointer", fontWeight: activeTab === 'administradoras' ? '600' : '400', color: activeTab === 'administradoras' ? 'var(--primary)' : 'var(--slate)' }}
+          onClick={() => setActiveTab('administradoras')}
+        >
+          Administradoras
+        </button>
+        <button 
+          style={{ background: "transparent", border: "none", borderBottom: activeTab === 'condominios' ? '2px solid var(--primary)' : '2px solid transparent', padding: "8px 16px", cursor: "pointer", fontWeight: activeTab === 'condominios' ? '600' : '400', color: activeTab === 'condominios' ? 'var(--primary)' : 'var(--slate)' }}
+          onClick={() => setActiveTab('condominios')}
+        >
+          Condomínios
+        </button>
+        <button 
+          style={{ background: "transparent", border: "none", borderBottom: activeTab === 'fontes' ? '2px solid var(--primary)' : '2px solid transparent', padding: "8px 16px", cursor: "pointer", fontWeight: activeTab === 'fontes' ? '600' : '400', color: activeTab === 'fontes' ? 'var(--primary)' : 'var(--slate)' }}
+          onClick={() => setActiveTab('fontes')}
+        >
+          Fontes Pagadoras
+        </button>
+      </div>
 
-          <ul>
-            {administradoras.filter(a => a.ativo).map(adm => (
-              <li key={adm.id} className="flex justify-between items-center border-b p-2">
-                <span>{adm.nome}</span>
-                <button 
-                  onClick={() => handleDeletarAdmin(adm.id)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  Excluir
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
+      <div className="w-full">
+        {activeTab === 'administradoras' && (
+          <div className="slip" style={{ padding: "24px", background: "var(--paper-card)" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px", color: "var(--ink)" }}>Administradoras</h2>
+            <form onSubmit={handleSalvarAdmin} style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+              <input 
+                className="input"
+                placeholder="Nome da Administradora"
+                value={formAdmin.nome}
+                onChange={(e) => setFormAdmin({ ...formAdmin, nome: e.target.value })}
+                required
+              />
+              <input 
+                className="input"
+                placeholder="CNPJ"
+                value={formAdmin.cnpj}
+                onChange={(e) => setFormAdmin({ ...formAdmin, cnpj: e.target.value })}
+              />
+              <button type="submit" className="btn-primary" style={{ width: "fit-content", marginTop: "8px" }}>
+                Salvar Administradora
+              </button>
+            </form>
 
-        {/* Condomínios */}
-        <div className="bg-white p-4 shadow rounded">
-          <h2 className="text-xl font-semibold mb-4">Condomínios</h2>
-          <form onSubmit={handleSalvarCondo} className="mb-4 flex flex-col gap-2">
-            <select 
-              className="border p-2 rounded"
-              value={formCondo.administradora_id}
-              onChange={(e) => setFormCondo({ ...formCondo, administradora_id: e.target.value })}
-              required
-            >
-              <option value="">Selecione a Administradora</option>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
               {administradoras.filter(a => a.ativo).map(adm => (
-                <option key={adm.id} value={adm.id}>{adm.nome}</option>
-              ))}
-            </select>
-            <input 
-              className="border p-2 rounded"
-              placeholder="Nome do Condomínio"
-              value={formCondo.nome}
-              onChange={(e) => setFormCondo({ ...formCondo, nome: e.target.value })}
-              required
-            />
-            <input 
-              className="border p-2 rounded"
-              placeholder="CNPJ"
-              value={formCondo.cnpj}
-              onChange={(e) => setFormCondo({ ...formCondo, cnpj: e.target.value })}
-            />
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-              Salvar Condomínio
-            </button>
-          </form>
-
-          <ul>
-            {condominios.filter(c => c.ativo).map(condo => {
-              const adm = administradoras.find(a => a.id === condo.administradora_id);
-              return (
-                <li key={condo.id} className="flex justify-between items-center border-b p-2">
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{condo.nome}</span>
-                    <span className="text-xs text-gray-500">{adm?.nome}</span>
-                  </div>
+                <li key={adm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--line)" }}>
+                  <span style={{ fontWeight: "500", color: "var(--ink)" }}>{adm.nome}</span>
                   <button 
-                    onClick={() => handleDeletarCondo(condo.id)}
-                    className="text-red-600 hover:text-red-800"
+                    onClick={() => handleDeletarAdmin(adm.id)}
+                    style={{ color: "var(--danger)", background: "transparent", border: "none", cursor: "pointer", fontWeight: "500" }}
                   >
                     Excluir
                   </button>
                 </li>
-              );
-            })}
-          </ul>
-        </div>
-
-        {/* Contas Bancárias */}
-        <div className="bg-white p-4 shadow rounded">
-          <h2 className="text-xl font-semibold mb-4">Contas Bancárias</h2>
-          <form onSubmit={handleSalvarConta} className="mb-4 flex flex-col gap-2">
-            <select 
-              className="border p-2 rounded"
-              value={formConta.condominio_id}
-              onChange={(e) => setFormConta({ ...formConta, condominio_id: e.target.value })}
-              required
-            >
-              <option value="">Selecione o Condomínio</option>
-              {condominios.filter(c => c.ativo).map(condo => (
-                <option key={condo.id} value={condo.id}>{condo.nome}</option>
               ))}
-            </select>
+            </ul>
+          </div>
+        )}
 
-            <input 
-              className="border p-2 rounded"
-              placeholder="Banco (Ex: Itaú)"
-              value={formConta.banco}
-              onChange={(e) => setFormConta({ ...formConta, banco: e.target.value })}
-              required
-            />
-            <div className="flex gap-2">
+        {activeTab === 'condominios' && (
+          <div className="slip" style={{ padding: "24px", background: "var(--paper-card)" }}>
+            <h2 style={{ fontSize: "18px", fontWeight: "600", marginBottom: "16px", color: "var(--ink)" }}>Condomínios</h2>
+            <form onSubmit={handleSalvarCondo} style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "24px" }}>
+              <select 
+                className="input"
+                value={formCondo.administradora_id}
+                onChange={(e) => setFormCondo({ ...formCondo, administradora_id: e.target.value })}
+                required
+              >
+                <option value="">Selecione a Administradora</option>
+                {administradoras.filter(a => a.ativo).map(adm => (
+                  <option key={adm.id} value={adm.id}>{adm.nome}</option>
+                ))}
+              </select>
               <input 
-                className="border p-2 rounded w-1/2"
-                placeholder="Agência"
-                value={formConta.agencia}
-                onChange={(e) => setFormConta({ ...formConta, agencia: e.target.value })}
+                className="input"
+                placeholder="Nome do Condomínio"
+                value={formCondo.nome}
+                onChange={(e) => setFormCondo({ ...formCondo, nome: e.target.value })}
                 required
               />
               <input 
-                className="border p-2 rounded w-1/2"
-                placeholder="Conta"
-                value={formConta.conta}
-                onChange={(e) => setFormConta({ ...formConta, conta: e.target.value })}
-                required
+                className="input"
+                placeholder="CNPJ"
+                value={formCondo.cnpj}
+                onChange={(e) => setFormCondo({ ...formCondo, cnpj: e.target.value })}
               />
-            </div>
+              <button type="submit" className="btn-primary" style={{ width: "fit-content", marginTop: "8px" }}>
+                Salvar Condomínio
+              </button>
+            </form>
 
-            <select 
-              className="border p-2 rounded"
-              value={formConta.plano_conta_id}
-              onChange={(e) => setFormConta({ ...formConta, plano_conta_id: e.target.value })}
-              required
-              disabled={!formConta.condominio_id}
-            >
-              {!formConta.condominio_id ? (
-                <option value="">Selecione o Condomínio primeiro...</option>
-              ) : planoContas.length === 0 ? (
-                <option value="">Nenhuma conta devedora encontrada</option>
-              ) : (
-                <>
-                  <option value="">Selecione a Conta Devedora</option>
-                  {planoContas.map(pc => (
-                    <option key={pc.id} value={pc.id}>{pc.codigo} - {pc.descricao}</option>
-                  ))}
-                </>
-              )}
-            </select>
+            <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+              {condominios.filter(c => c.ativo).map(condo => {
+                const adm = administradoras.find(a => a.id === condo.administradora_id);
+                return (
+                  <li key={condo.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--line)" }}>
+                    <div style={{ display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontWeight: "500", color: "var(--ink)" }}>{condo.nome}</span>
+                      <span style={{ fontSize: "12px", color: "var(--slate)" }}>{adm?.nome}</span>
+                    </div>
+                    <button 
+                      onClick={() => handleDeletarCondo(condo.id)}
+                      style={{ color: "var(--danger)", background: "transparent", border: "none", cursor: "pointer", fontWeight: "500" }}
+                    >
+                      Excluir
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
-            <button type="submit" className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
-              Salvar Conta Bancária
-            </button>
-          </form>
-
-          <ul>
-            {contasBancarias.filter(c => c.ativo).map(conta => {
-              const condo = condominios.find(cd => cd.id === conta.condominio_id);
-              return (
-                <li key={conta.id} className="flex justify-between items-center border-b p-2">
-                  <div className="flex flex-col">
-                    <span className="font-semibold">{conta.banco} - Ag: {conta.agencia} CC: {conta.conta}</span>
-                    <span className="text-xs text-gray-500">{condo?.nome}</span>
-                  </div>
-                  <button 
-                    onClick={() => handleDeletarConta(conta.id)}
-                    className="text-red-600 hover:text-red-800"
-                  >
-                    Excluir
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
+        {activeTab === 'fontes' && (
+          <div className="slip" style={{ padding: "24px", background: "var(--paper-card)" }}>
+            <FontesPagadorasAdmin />
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

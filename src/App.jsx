@@ -9,7 +9,7 @@ import PlanoContasAdmin from "./components/PlanoContasAdmin";
 import BalanceteUploader from "./components/BalanceteUploader";
 import CadastrosBasicos from "./pages/CadastrosBasicos";
 import FechamentoContabil from "./components/FechamentoContabil";
-import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen, Download } from "./components/layout/icons";
+import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen, Download, Wallet } from "./components/layout/icons";
 
 const PAGES = [
   { id: "cadastros-basicos",    label: "Cadastros Básicos",    icon: BookOpen,        component: CadastrosBasicos   },
@@ -34,3 +34,4 @@ export default function App() {
     </CondoProvider>
   );
 }
+

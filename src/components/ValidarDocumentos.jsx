@@ -328,7 +328,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           });
           
                     try {
-            const resCB = await fetch(`${API_URL()}/api/v1/cadastros/contas-bancarias?condominio_id=${d.condominio_id}`);
+            const resCB = await fetch(`${API_URL()}/api/v1/fontes-pagadoras?condominio_id=${d.condominio_id}`);
             if (resCB.ok) {
               const cbData = await resCB.json();
               if (ativo) setContasBancarias(cbData);
@@ -340,14 +340,23 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                 const contas = await resPlano.json();
                 if (ativo) {
                   setPlanoContas(contas);
-                  if (!d.sugestao_contabil?.conta_debito_codigo && !d.conta_codigo && contas.length > 0) {
-                    setForm(prev => ({ ...prev, conta_codigo: contas[0].codigo }));
+                  const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo || d.conta_codigo;
+                  let selectedId = "";
+                  if (defaultCodigo) {
+                    const match = contas.find(c => c.codigo_contabil === defaultCodigo);
+                    if (match) selectedId = match.id;
+                  }
+                  if (!selectedId && contas.length > 0) {
+                    selectedId = contas[0].id;
+                  }
+                  if (selectedId) {
+                    setForm(prev => ({ ...prev, conta_codigo: selectedId }));
                   }
                 }
               }
             } catch (errPlano) {
-            console.error("Erro ao carregar contas sugeridas", errPlano);
-          }
+              console.error("Erro ao carregar contas sugeridas", errPlano);
+            }
         }
       } catch (err) {
         if (ativo) setErro("Não foi possível carregar o documento.");
@@ -378,7 +387,13 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     payload.descricao = prepareParaEnvio(payload.descricao);
     payload.chave_acesso = prepareParaEnvio(payload.chave_acesso);
     payload.competencia = prepareParaEnvio(payload.competencia);
-    payload.conta_devedora_id = prepareParaEnvio(payload.conta_devedora_id);
+    
+    // Mapeamento correto para o backend
+    payload.conta_despesa_id = prepareParaEnvio(payload.conta_codigo);
+    payload.fonte_pagadora_id = prepareParaEnvio(payload.conta_devedora_id);
+    delete payload.conta_codigo;
+    delete payload.conta_devedora_id;
+
     if (payload.valor_total === "") payload.valor_total = null;
 
     const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
@@ -416,7 +431,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-documento/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
           if (sugResp.ok) {
             const sugData = await sugResp.json();
-            if (sugData.tem_sugestao && sugData.sugestao && !form.conta_devedora_id) {
+            if (sugData.tem_sugestao && sugData.sugestao) {
               setSugestao(sugData.sugestao);
               setSalvando(false);
               return;
@@ -426,13 +441,14 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           console.error("Erro ao buscar sugestão", e);
         }
 
+        // Se chegou aqui, não há sugestão!
         if (!form.conta_devedora_id) {
           setShowContaDevedora(true);
-          setErro("A automação não encontrou conciliação para este valor. Selecione a Conta Bancária / Pagadora abaixo e confirme novamente para gravar.");
+          setErro("A automação não encontrou conciliação para este valor. Selecione a Fonte Pagadora (Crédito) abaixo e confirme novamente para gravar.");
           setSalvando(false);
           return;
         }
-        
+
         await salvarDocumentoPatch("confirmar");
         const [ano, mes] = mesAnoSelecionado.split("-");
         const date = new Date(ano, parseInt(mes) - 1);
@@ -459,7 +475,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     }
     setSalvando(true);
     try {
-      await salvarDocumentoPatch("confirmar", sugestao.conta_devedora_id || null);
+      await salvarDocumentoPatch("confirmar", sugestao.fonte_pagadora_id || null);
 
       const resp = await fetch(`${API_URL()}/api/v1/conciliacao/conciliar`, {
         method: "POST",
@@ -592,7 +608,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           onValidarDepois={(e) => {
             if (e) { e.preventDefault(); e.stopPropagation(); }
             setSugestao(null);
-            handleAcao("confirmar", sugestao.conta_devedora_id || null);
+            handleAcao("confirmar", sugestao.fonte_pagadora_id || null);
           }}
           onCancel={(e) => {
             if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -713,7 +729,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           </div>
 
           <div className="field" style={{ marginBottom: 16 }}>
-            <span className="field__label">Conta Contábil (Débito)</span>
+            <span className="field__label">Conta de Despesa (Débito)</span>
             <select
               className="input"
               style={{ textAlign: "center", textAlignLast: "center" }}
@@ -725,23 +741,23 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                 <>
                   <optgroup label="Mais Prováveis">
                     {planoContas.slice(0, 5).map(conta => (
-                      <option key={`prov-${conta.codigo}`} value={conta.codigo}>
-                        {conta.codigo} - {conta.descricao} {conta.similarity ? `(${(conta.similarity * 100).toFixed(1)}%)` : ''}
+                      <option key={`prov-${conta.id}`} value={conta.id}>
+                        {conta.codigo_contabil} - {conta.descricao} {conta.similarity ? `(${(conta.similarity * 100).toFixed(1)}%)` : ''}
                       </option>
                     ))}
                   </optgroup>
                   <optgroup label="Outras Contas">
                     {planoContas.slice(5).map(conta => (
-                      <option key={`outras-${conta.codigo}`} value={conta.codigo}>
-                        {conta.codigo} - {conta.descricao}
+                      <option key={`outras-${conta.id}`} value={conta.id}>
+                        {conta.codigo_contabil} - {conta.descricao}
                       </option>
                     ))}
                   </optgroup>
                 </>
               ) : (
                 planoContas.map(conta => (
-                  <option key={`normal-${conta.codigo}`} value={conta.codigo}>
-                    {conta.codigo} - {conta.descricao}
+                  <option key={`normal-${conta.id}`} value={conta.id}>
+                    {conta.codigo_contabil} - {conta.descricao}
                   </option>
                 ))
               )}
@@ -750,7 +766,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 
                     {showContaDevedora && (
             <div className="field" style={{ marginBottom: 16 }}>
-              <span className="field__label">Conta Bancária / Pagadora</span>
+              <span className="field__label">Fonte Pagadora (Crédito)</span>
               <select
                 className="input"
                 style={{ textAlign: "center", textAlignLast: "center", borderColor: "#ef4444" }}
@@ -759,8 +775,8 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
               >
                 <option value="">Selecione a conta que originou o pagamento...</option>
                 {contasBancarias.map(conta => (
-                  <option key={conta.id} value={conta.plano_conta_id}>
-                    {conta.banco} - Ag: {conta.agencia} CC: {conta.conta}
+                  <option key={conta.id} value={conta.id}>
+                    {conta.nome} {conta.banco ? `- ${conta.banco}` : ''} {conta.conta ? `CC: ${conta.conta}` : ''}
                   </option>
                 ))}
               </select>
