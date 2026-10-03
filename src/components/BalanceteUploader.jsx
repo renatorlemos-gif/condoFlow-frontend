@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useCondo } from '../context/CondoContext';
 
 export default function BalanceteUploader() {
@@ -75,10 +75,8 @@ export default function BalanceteUploader() {
 
       const data = await response.json();
       setResult({ type: 'rules', ...data });
-      alert(`Sucesso! Foram processados/atualizados ${data.processados} contextos.`);
     } catch (err) {
       setError(err.message);
-      alert(`Erro: ${err.message}`);
     } finally {
       setLoadingRules(false);
     }
@@ -146,7 +144,7 @@ export default function BalanceteUploader() {
               {result.data?.map((item, idx) => (
                 <li key={idx} style={{ padding: '8px 0', borderBottom: '1px solid #eee' }}>
                   <strong>Lançamento:</strong> {item.descricao_lancamento} <br />
-                  <strong>Conta:</strong> {item.conta_codigo || 'N/A'} <br />
+                  <strong>Conta:</strong> {item.codigo_contabil || 'N/A'} <br />
                   <strong>Descrição:</strong> {item.conta_descricao || '—'}
                 </li>
               ))}
