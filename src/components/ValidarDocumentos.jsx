@@ -721,11 +721,15 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             <textarea
               className={`input textarea ${!form.descricao ? "input--missing" : ""}`.trim()}
               rows={2}
+              maxLength={80}
               placeholder="Não identificado"
               style={{ textAlign: "center" }}
               value={form.descricao ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             />
+            <div style={{ textAlign: "right", fontSize: 12, color: "var(--slate)", marginTop: 4 }}>
+              {(form.descricao ?? "").length}/80
+            </div>
           </div>
 
           <div className="field" style={{ marginBottom: 16 }}>
