@@ -4,7 +4,7 @@ import { useCondo } from "../context/CondoContext";
 
 export default function FechamentoContabil() {
   const { currentAdm, currentCondo, mesAnoSelecionado } = useCondo();
-  const [documentos, setDocumentos] = useState([]);
+  const [despesas, setDespesas] = useState([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [erro, setErro] = useState("");
@@ -15,7 +15,7 @@ export default function FechamentoContabil() {
     if (currentCondo && mesAnoSelecionado) {
       setLoading(true);
       setErro("");
-      fetch(`${API_URL}/api/v1/validacao/documentos?status=validado,conciliado`)
+      fetch(`${API_URL}/api/v1/validacao/despesas?status=validado,conciliado`)
         .then(res => res.json())
         .then(data => {
           const docs = data.filter(d => {
@@ -27,20 +27,20 @@ export default function FechamentoContabil() {
             return d.condominio_id === currentCondo.id && 
                    refMes === mesAnoSelecionado;
           });
-          setDocumentos(docs);
+          setDespesas(docs);
         })
         .catch(err => {
           console.error(err);
-          setErro("Falha ao carregar documentos.");
+          setErro("Falha ao carregar despesas.");
         })
         .finally(() => setLoading(false));
     } else {
-      setDocumentos([]);
+      setDespesas([]);
     }
   }, [currentCondo, mesAnoSelecionado, API_URL]);
 
   const handleExport = async () => {
-    if (documentos.length === 0) return;
+    if (despesas.length === 0) return;
     setExporting(true);
     setErro("");
     try {
@@ -93,13 +93,13 @@ export default function FechamentoContabil() {
           <div>
             <h3 className="section-title">Lançamentos Qualificados</h3>
             <p style={{ fontSize: "13px", color: "var(--slate)", margin: 0 }}>
-              Exibindo apenas documentos validados/conciliados com conta de despesa informada.
+              Exibindo apenas despesas validados/conciliados com conta de despesa informada.
             </p>
           </div>
           <button 
             className="btn-primary" 
             onClick={handleExport} 
-            disabled={exporting || documentos.length === 0}
+            disabled={exporting || despesas.length === 0}
             style={{ display: "flex", alignItems: "center", gap: 8 }}
           >
             {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
@@ -115,7 +115,7 @@ export default function FechamentoContabil() {
 
         {loading ? (
           <div style={{ padding: "40px", textAlign: "center" }}><Loader2 size={24} className="spin" /></div>
-        ) : documentos.length === 0 ? (
+        ) : despesas.length === 0 ? (
           <div style={{ padding: "40px", textAlign: "center", border: "1px dashed var(--line)", borderRadius: "8px" }}>
             <p style={{ color: "var(--slate)", margin: 0 }}>Não há lançamentos qualificados para exportação neste período.</p>
           </div>
@@ -131,7 +131,7 @@ export default function FechamentoContabil() {
               </tr>
             </thead>
             <tbody>
-              {documentos.map(d => (
+              {despesas.map(d => (
                 <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
                   <td style={{ padding: "10px", textAlign: "center", maxWidth: "250px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.fornecedor}>
                     {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (

@@ -24,7 +24,7 @@ export default function FontesPagadorasAdmin() {
     if (selectedAdmId) {
       fetch(`${API_URL}/api/v1/plano-contas/?administradora_id=${selectedAdmId}`)
         .then(res => res.json())
-        .then(data => setPlanoContas(data))
+        .then(data => setPlanoContas(data.data || []))
         .catch(err => console.error("Erro ao carregar plano de contas", err));
     }
   }, [selectedAdmId]);

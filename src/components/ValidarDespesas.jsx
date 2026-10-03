@@ -111,7 +111,7 @@ function FotoModal({ url, onClose }) {
       ) : (
         <img
           src={url}
-          alt="Documento ampliado"
+          alt="Despesa ampliado"
           onClick={(e) => e.stopPropagation()}
           style={{ maxWidth: "92vw", maxHeight: "92vh", objectFit: "contain",
                    borderRadius: 8, cursor: "default" }}
@@ -268,7 +268,7 @@ function ModalConciliacaoImediata({ transacao, docId, onConfirm, onValidarDepois
 /* ------------------------------------------------------------------ */
 /*  Tela de detalhe / validação                                         */
 /* ------------------------------------------------------------------ */
-function DetalheDocumento({ docId, onVoltar, onSalvo }) {
+function DetalheDespesa({ docId, onVoltar, onSalvo }) {
   const { mesAnoSelecionado, selectedCondoId } = useCondo();
   const [doc, setDoc]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -289,7 +289,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
       try {
         setLoading(true);
         setErro("");
-        const res = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`);
+        const res = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`);
         if (!res.ok) throw new Error("Erro na requisição");
         const d = await res.json();
         if (ativo) {
@@ -335,7 +335,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             }
           } catch (errCB) { console.error(errCB); }
                       try {
-              const resPlano = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/contas-sugeridas`);
+              const resPlano = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/contas-sugeridas`);
               if (resPlano.ok) {
                 const contas = await resPlano.json();
                 if (ativo) {
@@ -359,7 +359,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
             }
         }
       } catch (err) {
-        if (ativo) setErro("Não foi possível carregar o documento.");
+        if (ativo) setErro("Não foi possível carregar o despesa.");
       } finally {
         if (ativo) setLoading(false);
       }
@@ -368,7 +368,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     return () => { ativo = false; };
   }, [docId]);
 
-  const salvarDocumentoPatch = async (acaoPatch, forcedContaDevedoraId = undefined) => {
+  const salvarDespesaPatch = async (acaoPatch, forcedContaDevedoraId = undefined) => {
     const payload = { acao: acaoPatch, ...form };
     if (forcedContaDevedoraId !== undefined) {
         payload.conta_devedora_id = forcedContaDevedoraId;
@@ -396,7 +396,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 
     if (payload.valor_total === "") payload.valor_total = null;
 
-    const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}`, {
+    const resp = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -413,22 +413,22 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     setErro("");
     try {
       if (acao === "rejeitar") {
-        await salvarDocumentoPatch(acao);
+        await salvarDespesaPatch(acao);
         onSalvo();
         return;
       }
 
       if (acao === "confirmar" && mesAnoSelecionado) {
         if (forcedContaDevedoraId !== undefined) {
-          await salvarDocumentoPatch("confirmar", forcedContaDevedoraId);
-          setShowToast("Documento validado com sucesso. A conciliação será feita depois.");
+          await salvarDespesaPatch("confirmar", forcedContaDevedoraId);
+          setShowToast("Despesa validado com sucesso. A conciliação será feita depois.");
           setTimeout(() => onSalvo(), 2000);
           setSalvando(false);
           return;
         }
 
         try {
-          const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-documento/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
+          const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-despesa/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
           if (sugResp.ok) {
             const sugData = await sugResp.json();
             if (sugData.tem_sugestao && sugData.sugestao) {
@@ -449,18 +449,18 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           return;
         }
 
-        await salvarDocumentoPatch("confirmar");
+        await salvarDespesaPatch("confirmar");
         const [ano, mes] = mesAnoSelecionado.split("-");
         const date = new Date(ano, parseInt(mes) - 1);
         const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
         const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
-        setShowToast(`Documento validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
+        setShowToast(`Despesa validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
         setTimeout(() => onSalvo(), 3000);
         setSalvando(false);
         return;
       }
       
-      await salvarDocumentoPatch(acao);
+      await salvarDespesaPatch(acao);
       onSalvo();
     } catch (e) {
       setErro(e.message);
@@ -475,14 +475,14 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     }
     setSalvando(true);
     try {
-      await salvarDocumentoPatch("confirmar", sugestao.fonte_pagadora_id || null);
+      await salvarDespesaPatch("confirmar", sugestao.fonte_pagadora_id || null);
 
       const resp = await fetch(`${API_URL()}/api/v1/conciliacao/conciliar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           transacoes_ids: [sugestao.id],
-          documentos_ids: [docId],
+          despesas_ids: [docId],
           status: "manual"
         })
       });
@@ -502,7 +502,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
     setSalvando(true);
     setErro("");
     try {
-      const resp = await fetch(`${API_URL()}/api/v1/documentos/${docId}/reprocessar`, {
+      const resp = await fetch(`${API_URL()}/api/v1/despesas/${docId}/reprocessar`, {
         method: "POST",
       });
       if (!resp.ok) throw new Error("Erro ao solicitar reprocessamento.");
@@ -527,13 +527,13 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
         } catch (err) {}
         window.open("https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx", "_blank", "noopener,noreferrer");
       } else {
-        setShowToast("Documento sem QR Code ou Chave de Acesso válidos.");
+        setShowToast("Despesa sem QR Code ou Chave de Acesso válidos.");
         setTimeout(() => setShowToast(""), 3000);
       }
     };
 
     try {
-      const resp = await fetch(`${API_URL()}/api/v1/validacao/documentos/${docId}/scan-qr`, {
+      const resp = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/scan-qr`, {
         method: "POST"
       });
       if (!resp.ok) {
@@ -562,7 +562,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 
   if (!doc) return (
     <div className="feedback feedback--error">
-      <AlertTriangle size={15} /><span>{erro || "Documento não encontrado."}</span>
+      <AlertTriangle size={15} /><span>{erro || "Despesa não encontrado."}</span>
     </div>
   );
 
@@ -659,7 +659,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                 ) : (
                   <img
                     src={doc.foto_url}
-                    alt="Documento fiscal"
+                    alt="Despesa fiscal"
                     style={{ width: "100%", display: "block", maxHeight: 520, objectFit: "contain",
                              background: "#eef1ef", cursor: "zoom-in" }}
                     onClick={() => setZoom(true)}
@@ -682,7 +682,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
                 </button>
                 <button
                   onClick={() => setZoom(true)}
-                  title="Ampliar documento"
+                  title="Ampliar despesa"
                   style={{
                     background: "rgba(255,255,255,0.9)", border: "1px solid #dde1e0",
                     borderRadius: 8, padding: "6px 10px", cursor: "pointer",
@@ -708,7 +708,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
           <div className="result-grid">
             {campo("Fornecedor",        "fornecedor",      "text",   "Não identificado")}
             {campo("CNPJ/CPF",          "cnpj_cpf",        "text",   "Não identificado")}
-            {campo("Nº do documento",   "numero_doc",      "text",   "Não identificado")}
+            {campo("Nº do despesa",   "numero_doc",      "text",   "Não identificado")}
             {campo("Competência",       "competencia",     "text",   "MM/YYYY")}
             {campo("Valor total (R$)",  "valor_total",     "number", "Não identificado")}
             {campo("Data de emissão",   "data_emissao",    "date",   "Não identificado")}
@@ -840,7 +840,7 @@ function DetalheDocumento({ docId, onVoltar, onSalvo }) {
 /* ------------------------------------------------------------------ */
 /*  Tela de lista                                                       */
 /* ------------------------------------------------------------------ */
-export default function ValidarDocumentos() {
+export default function ValidarDespesas() {
   const [docs, setDocs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [erro, setErro]         = useState("");
@@ -857,7 +857,7 @@ export default function ValidarDocumentos() {
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch(`${API_URL()}/api/v1/validacao/documentos?status=todos&limit=100`, {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas?status=todos&limit=100`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -869,7 +869,7 @@ export default function ValidarDocumentos() {
       if (e.name === "AbortError") {
         setErro("A requisição demorou muito para responder.");
       } else {
-        setErro("Não foi possível carregar os documentos.");
+        setErro("Não foi possível carregar os despesas.");
       }
     } finally {
       clearTimeout(timeoutId);
@@ -897,7 +897,7 @@ export default function ValidarDocumentos() {
 
   if (docAberto) {
     return (
-      <DetalheDocumento
+      <DetalheDespesa
         docId={docAberto}
         onVoltar={() => { setDocAberto(null); carregar(); }}
         onSalvo={() => { setDocAberto(null); carregar(); }}
@@ -909,7 +909,7 @@ export default function ValidarDocumentos() {
     <div className="page" style={{ maxWidth: 900 }}>
       <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Contabilidade</span>
-        <h1 className="page__title">Validar Documentos</h1>
+        <h1 className="page__title">Validar Despesas</h1>
         <p className="page__subtitle" style={{ margin: "0 auto" }}>
           Revise e confirme os dados extraídos automaticamente antes da conciliação.
         </p>
@@ -961,7 +961,7 @@ export default function ValidarDocumentos() {
       {/* Lista vazia */}
       {!loading && !erro && docsFiltrados.length === 0 && (
         <div className="slip" style={{ textAlign: "center", padding: 48, color: "var(--slate)" }}>
-          Nenhum documento {filtro === "extraido" ? "aguardando validação" : "encontrado"}.
+          Nenhum despesa {filtro === "extraido" ? "aguardando validação" : "encontrado"}.
         </div>
       )}
 
