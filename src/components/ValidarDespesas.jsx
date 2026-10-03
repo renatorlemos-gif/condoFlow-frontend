@@ -880,7 +880,7 @@ export default function ValidarDespesas() {
 
   useEffect(() => { 
     carregar(); 
-    const interval = setInterval(carregar, 10000);
+    const interval = setInterval(carregar, 2000);
     return () => clearInterval(interval);
   }, [carregar]);
 
@@ -933,15 +933,7 @@ export default function ValidarDespesas() {
             <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: item.cor, fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
           </div>
         ))}
-        <button
-          className="icon-btn"
-          onClick={carregar}
-          title="Atualizar"
-          disabled={loading}
-          style={{ marginLeft: "auto", alignSelf: "flex-start", marginTop: 8, opacity: loading ? 0.5 : 1, cursor: loading ? "not-allowed" : "pointer" }}
-        >
-          <RefreshCw size={16} className={loading ? "spin" : ""} />
-        </button>
+
       </div>
 
       {/* Estado de carregamento */}
@@ -971,7 +963,7 @@ export default function ValidarDespesas() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
-                {["Fornecedor", "Nº Doc", "Data emissão", "Valor (R$)", "Status", ""].map((h) => (
+                {["Fornecedor", "Nº Doc", "Data Pagamento", "Valor (R$)", "Status"].map((h) => (
                   <th key={h} style={{
                     padding: "10px 14px", textAlign: "center",
                     fontSize: 10.5, textTransform: "uppercase",
@@ -1012,23 +1004,19 @@ export default function ValidarDespesas() {
                       {doc.numero_doc && doc.numero_doc !== "null" ? doc.numero_doc : "—"}
                     </td>
                     <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
-                      {doc.data_emissao && doc.data_emissao !== "null"
+                      {doc.data_pagamento && doc.data_pagamento !== "null"
                         ? (() => {
-                            const raw = doc.data_emissao.includes("T") ? doc.data_emissao : doc.data_emissao + "T00:00:00";
+                            const raw = doc.data_pagamento.includes("T") ? doc.data_pagamento : doc.data_pagamento + "T00:00:00";
                             const dt = new Date(raw);
                             return isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("pt-BR");
                           })()
                         : "—"}
                     </td>
-                  <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace",
-                               fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
-                    {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
-                  </td>
-                  <td style={{ padding: "11px 14px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
-                  <td style={{ padding: "11px 14px", color: "var(--ledger)",
-                               fontWeight: 600, fontSize: 12, textAlign: "center" }}>
-                    Abrir →
-                  </td>
+                  <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
+                      {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
+                    </td>
+                    <td style={{ padding: "11px 14px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
+                  
                 </tr>
                 );
               })}
