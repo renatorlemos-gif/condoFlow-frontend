@@ -126,15 +126,15 @@ export default function FechamentoContabil() {
                 <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
                   <th style={{ padding: "10px", textAlign: "center" }}>Fornecedor</th>
                   <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Data Pag.</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Valor</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Fonte Pagadora</th>
+                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Valor</th>
+                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Fonte Pagadora</th>
                   <th style={{ padding: "10px", textAlign: "center" }}>Conta de Despesa</th>
                 </tr>
               </thead>
               <tbody>
                 {despesas.map(d => (
                   <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td style={{ padding: "10px", textAlign: "center",  }} title={d.fornecedor}>
+                    <td style={{ padding: "10px", textAlign: "center" }} title={d.fornecedor}>
                       {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
                         <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
                           <AlertTriangle size={14} />
@@ -142,12 +142,12 @@ export default function FechamentoContabil() {
                       )}
                       <span style={{ verticalAlign: "middle" }}>{d.fornecedor}</span>
                     </td>
-                    <td style={{ padding: "10px", textAlign: "center" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
                     <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
-                    <td style={{ padding: "10px", textAlign: "center",  }} title={d.conta_credora_descricao || "N/A"}>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }} title={d.conta_credora_descricao || "N/A"}>
                       {d.conta_credora_descricao || "N/A"}
                     </td>
-                    <td style={{ padding: "10px", textAlign: "center",  }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
+                    <td style={{ padding: "10px", textAlign: "center" }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
                       {d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}
                     </td>
                   </tr>
