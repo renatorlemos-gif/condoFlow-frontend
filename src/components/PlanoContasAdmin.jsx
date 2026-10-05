@@ -401,6 +401,7 @@ export default function PlanoContasAdmin() {
       </div>
 
       <ModalConta 
+        key={modalContaOpen ? "open" : "closed"}
         open={modalContaOpen} 
         onClose={() => setModalContaOpen(false)} 
         onSave={handleSalvarConta} 
