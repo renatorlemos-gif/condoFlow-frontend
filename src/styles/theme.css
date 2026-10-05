@@ -622,3 +622,9 @@ textarea[placeholder="Não identificado"]::placeholder {
 
 .topbar { flex-shrink: 0; }
 .page { flex-shrink: 0; }
+
+.slip { box-sizing: border-box; max-width: 100%; overflow-x: hidden; }
+.slip > [style*='overflowX: auto'] { width: 100%; }
+
+.page { min-width: 0; }
+.slip { min-width: 0; }
