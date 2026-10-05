@@ -642,7 +642,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
       </div>
 
       {/* Split screen */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, alignItems: "start" }}>
+      <div className="split-screen">
 
         {/* Foto */}
         <div className="slip" style={{ padding: 0, overflow: "hidden" }}>
@@ -735,8 +735,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
           <div className="field" style={{ marginBottom: 16 }}>
             <span className="field__label">Conta de Despesa (Débito)</span>
             <select
-              className="input"
-              style={{ textAlign: "center", textAlignLast: "center" }}
+              className="input left-align-select"
+              style={{ width: "100%", maxWidth: "100%", textOverflow: "ellipsis" }}
               value={form.conta_codigo ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
             >
@@ -772,8 +772,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
             <div className="field" style={{ marginBottom: 16 }}>
               <span className="field__label">Fonte Pagadora (Crédito)</span>
               <select
-                className="input"
-                style={{ textAlign: "center", textAlignLast: "center", borderColor: "#ef4444" }}
+                className="input left-align-select"
+                style={{ borderColor: "#ef4444", width: "100%", maxWidth: "100%", textOverflow: "ellipsis" }}
                 value={form.conta_devedora_id ?? ""}
                 onChange={(e) => setForm((f) => ({ ...f, conta_devedora_id: e.target.value }))}
               >

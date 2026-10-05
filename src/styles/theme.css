@@ -593,3 +593,26 @@ textarea[placeholder="Não identificado"]::placeholder {
   .slip__row { flex-direction: column; gap: 12px; }
   .result-grid { grid-template-columns: 1fr; }
 }
+
+.split-screen { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; width: 100%; }
+@media (max-width: 1024px) { .split-screen { grid-template-columns: 1fr; } }
+
+.split-screen { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; width: 100%; }
+@media (max-width: 1024px) { .split-screen { grid-template-columns: 1fr; } }
+
+.left-align-select { text-align: left !important; text-align-last: left !important; }
+.left-align-select option { text-align: left !important; }
+
+.context-picker { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; -ms-overflow-style: none; scrollbar-width: none; }
+.context-picker::-webkit-scrollbar { display: none; }
+.context-select { max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; }
+@media (max-width: 768px) { .context-select { max-width: 150px; } }
+
+.topbar { min-width: 0; max-width: 100vw; overflow: hidden; }
+.context-picker { min-width: 0; width: 100%; flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.context-select { max-width: 100%; }
+@media (min-width: 1025px) { .context-select { max-width: 400px; } }
+@media (max-width: 1024px) { .context-select { max-width: 180px; } }
+
+.main { min-width: 0; max-width: 100vw; overflow-x: hidden; }
+.app { max-width: 100vw; overflow-x: hidden; }

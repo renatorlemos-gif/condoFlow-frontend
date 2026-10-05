@@ -156,7 +156,7 @@ export default function AppShell({
               className="context-select"
               value={selectedCondoId || ""}
               onChange={(e) => selectCondo(e.target.value)}
-              title="Condomínio Ativo da Carteira"
+              title={condominios.find(c => c.id === selectedCondoId)?.nome || "Condomínio Ativo da Carteira"}
             >
               {condominios.map((c) => (
                 <option key={c.id} value={c.id}>
