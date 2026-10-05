@@ -120,39 +120,41 @@ export default function FechamentoContabil() {
             <p style={{ color: "var(--slate)", margin: 0 }}>Não há lançamentos qualificados para exportação neste período.</p>
           </div>
         ) : (
-          <table style={{ width: "100%", fontSize: "13px", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
-                <th style={{ padding: "10px", textAlign: "center" }}>Fornecedor</th>
-                <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Data Pag.</th>
-                <th style={{ padding: "10px", textAlign: "center" }}>Valor</th>
-                <th style={{ padding: "10px", textAlign: "center" }}>Fonte Pagadora</th>
-                <th style={{ padding: "10px", textAlign: "center" }}>Conta de Despesa</th>
-              </tr>
-            </thead>
-            <tbody>
-              {despesas.map(d => (
-                <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                  <td style={{ padding: "10px", textAlign: "center", maxWidth: "250px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.fornecedor}>
-                    {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
-                      <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
-                        <AlertTriangle size={14} />
-                      </span>
-                    )}
-                    <span style={{ verticalAlign: "middle" }}>{d.fornecedor}</span>
-                  </td>
-                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
-                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
-                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_credora_descricao || "N/A"}>
-                    {d.conta_credora_descricao || "N/A"}
-                  </td>
-                  <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
-                    {d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}
-                  </td>
+          <div style={{ overflowX: "auto", width: "100%", minWidth: 0 }}>
+            <table style={{ width: "100%", minWidth: 700, fontSize: "13px", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
+                  <th style={{ padding: "10px", textAlign: "center" }}>Fornecedor</th>
+                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Data Pag.</th>
+                  <th style={{ padding: "10px", textAlign: "center" }}>Valor</th>
+                  <th style={{ padding: "10px", textAlign: "center" }}>Fonte Pagadora</th>
+                  <th style={{ padding: "10px", textAlign: "center" }}>Conta de Despesa</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {despesas.map(d => (
+                  <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                    <td style={{ padding: "10px", textAlign: "center", maxWidth: "250px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.fornecedor}>
+                      {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
+                        <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
+                          <AlertTriangle size={14} />
+                        </span>
+                      )}
+                      <span style={{ verticalAlign: "middle" }}>{d.fornecedor}</span>
+                    </td>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_credora_descricao || "N/A"}>
+                      {d.conta_credora_descricao || "N/A"}
+                    </td>
+                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "200px" }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
+                      {d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
