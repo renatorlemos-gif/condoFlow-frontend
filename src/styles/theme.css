@@ -619,3 +619,6 @@ textarea[placeholder="Não identificado"]::placeholder {
 
 .app { height: 100vh; overflow: hidden; }
 .main { height: 100vh; overflow-y: auto; overflow-x: hidden; }
+
+.topbar { flex-shrink: 0; }
+.page { flex-shrink: 0; }

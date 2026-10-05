@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
@@ -117,6 +117,7 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
   const [docs, setDocs]     = useState([]);
   const [busca, setBusca]   = useState("");
   const [loading, setLoading] = useState(true);
+  const [salvando, setSalvando] = useState(false);
   
   // Set of selected doc ids
   const [selecionados, setSelecionados] = useState(new Set());
@@ -124,8 +125,15 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
   useEffect(() => {
     setLoading(true);
     fetch(`${API()}/api/v1/conciliacao/despesas-disponiveis`)
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+      })
       .then(setDocs)
+      .catch(e => {
+        console.error("Erro ao carregar despesas:", e);
+        alert("Falha ao carregar despesas disponíveis.");
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -263,16 +271,21 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
               fontWeight: 500, cursor: "pointer", color: "var(--ink-soft)",
             }}>Cancelar</button>
             <button
-              disabled={!isDeltaValido || selecionados.size === 0}
-              onClick={() => onConfirmar(Array.from(selecionados), transacoes.length > 1 || selecionados.size > 1 ? "lote" : "manual")}
+              disabled={!isDeltaValido || selecionados.size === 0 || salvando}
+              onClick={async () => {
+                setSalvando(true);
+                await onConfirmar(Array.from(selecionados), transacoes.length > 1 || selecionados.size > 1 ? "lote" : "manual");
+                setSalvando(false);
+              }}
               style={{
-                border: "none", background: isDeltaValido && selecionados.size > 0 ? "var(--ledger)" : "#c3cbd6",
+                border: "none", background: isDeltaValido && selecionados.size > 0 && !salvando ? "var(--ledger)" : "#c3cbd6",
                 color: "#fff", borderRadius: 8, padding: "8px 18px",
-                fontSize: 13, fontWeight: 600, cursor: isDeltaValido && selecionados.size > 0 ? "pointer" : "not-allowed",
+                fontSize: 13, fontWeight: 600, cursor: isDeltaValido && selecionados.size > 0 && !salvando ? "pointer" : "not-allowed",
                 display: "flex", alignItems: "center", gap: 6,
               }}
             >
-              <Layers size={14} /> Conciliar {transacoes.length > 1 || selecionados.size > 1 ? "Lote" : "Despesa"}
+              {salvando ? <Loader2 size={14} className="spin" /> : <Layers size={14} />} 
+              {salvando ? "Conciliando..." : `Conciliar ${transacoes.length > 1 || selecionados.size > 1 ? "Lote" : "Despesa"}`}
             </button>
           </div>
         </div>
@@ -289,33 +302,42 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
   const [modalAberto, setModalAberto] = useState(false);
 
   const confirmarModal = async (docsIds, tipo) => {
-    setSalvando(true);
-    setModalAberto(false);
-    await onConciliar([trans.id], docsIds, tipo);
-    setSalvando(false);
+    try {
+      setSalvando(true);
+      setModalAberto(false);
+      await onConciliar([trans.id], docsIds, tipo);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSalvando(false);
+    }
   };
 
   const confirmarSugestao = async () => {
-    setSalvando(true);
-    await onConciliar([trans.id], [trans.sugestao.id], "automatica");
-    
-    if (trans.sugestao.conta_debito_codigo) {
-      try {
-        await fetch(`${API()}/api/classificacao/confirmar`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            administradora_id: "1",
-            conta_codigo: trans.sugestao.conta_debito_codigo,
-            criada_por_ia: false
-          }),
-        });
-      } catch (e) {
-        console.error("Erro ao salvar regra contábil", e);
+    try {
+      setSalvando(true);
+      await onConciliar([trans.id], [trans.sugestao.id], "automatica");
+      
+      if (trans.sugestao.conta_debito_codigo) {
+        try {
+          await fetch(`${API()}/api/classificacao/confirmar`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              administradora_id: "1",
+              conta_codigo: trans.sugestao.conta_debito_codigo,
+              criada_por_ia: false
+            }),
+          });
+        } catch (e) {
+          console.error("Erro ao salvar regra contábil", e);
+        }
       }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSalvando(false);
     }
-    
-    setSalvando(false);
   };
 
   const rowBgColor = {
@@ -545,17 +567,22 @@ export default function ConciliarDespesas() {
   useEffect(() => { carregar(); }, [carregar]);
 
   const handleConciliar = async (transacoesIds, despesasIds, status) => {
-    const resp = await fetch(`${API()}/api/v1/conciliacao/conciliar`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ transacoes_ids: transacoesIds, despesas_ids: despesasIds, status }),
-    });
-    if (resp.ok) {
-      setModalLoteAberto(false);
-      carregar();
-    } else {
-      const d = await resp.json();
-      alert(d.detail || "Erro ao conciliar.");
+    try {
+      const resp = await fetch(`${API()}/api/v1/conciliacao/conciliar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ transacoes_ids: transacoesIds, despesas_ids: despesasIds, status }),
+      });
+      if (resp.ok) {
+        setModalLoteAberto(false);
+        carregar();
+      } else {
+        const d = await resp.json().catch(() => ({}));
+        alert(d.detail || "Erro ao conciliar.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Erro ao realizar conciliação. Tente novamente.");
     }
   };
 
@@ -709,30 +736,32 @@ export default function ConciliarDespesas() {
           )}
 
           {!loading && transacoes.length > 0 && (
-            <div className="slip" style={{ padding: 0, width: "100%", maxWidth: "100%" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
-                <thead>
-                  <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
-                    <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
-                    <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
-                    <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
-                    <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
-                    <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Despesa Vinculado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transacoesFiltradas.map(trans => (
-                    <LinhaTransacao
-                      key={trans.id}
-                      trans={trans}
-                      onConciliar={handleConciliar}
-                      onDesfazer={handleDesfazer}
-                      selecionada={selecionadasTrans.has(trans.id)}
-                      onToggleSelec={() => toggleSelectTrans(trans.id)}
-                    />
-                  ))}
-                </tbody>
-              </table>
+            <div className="slip" style={{ padding: 0, width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+              <div style={{ overflowX: "auto", width: "100%", minWidth: 0 }}>
+                <table style={{ width: "100%", minWidth: 700, borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
+                  <thead>
+                    <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
+                      <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
+                      <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
+                      <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
+                      <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
+                      <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Despesa Vinculado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transacoesFiltradas.map(trans => (
+                      <LinhaTransacao
+                        key={trans.id}
+                        trans={trans}
+                        onConciliar={handleConciliar}
+                        onDesfazer={handleDesfazer}
+                        selecionada={selecionadasTrans.has(trans.id)}
+                        onToggleSelec={() => toggleSelectTrans(trans.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
         </>
