@@ -8,6 +8,7 @@ export default function FechamentoContabil() {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [erro, setErro] = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "data_pagamento", direction: "asc" });
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -38,6 +39,31 @@ export default function FechamentoContabil() {
       setDespesas([]);
     }
   }, [currentCondo, mesAnoSelecionado, API_URL]);
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
+  };
+
+  const despesasOrdenadas = [...despesas].sort((a, b) => {
+    const key = sortConfig.key;
+    let valA = a[key] || (key === 'data_pagamento' ? a['data_emissao'] : '');
+    let valB = b[key] || (key === 'data_pagamento' ? b['data_emissao'] : '');
+    
+    if (key === "valor_total") {
+      valA = Number(valA || 0);
+      valB = Number(valB || 0);
+    } else {
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+    }
+
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
 
   const handleExport = async () => {
     if (despesas.length === 0) return;
@@ -100,7 +126,7 @@ export default function FechamentoContabil() {
             className="btn-primary" 
             onClick={handleExport} 
             disabled={exporting || despesas.length === 0}
-            style={{ display: "flex", alignItems: "center", gap: 8 }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: "13px", height: "auto", minHeight: "36px" }}
           >
             {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
             Gerar Lote Alterdata
@@ -124,15 +150,26 @@ export default function FechamentoContabil() {
             <table style={{ width: "100%", minWidth: 700, fontSize: "13px", borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Fornecedor</th>
-                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Data Pag.</th>
-                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Valor</th>
-                  <th style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>Fonte Pagadora</th>
-                  <th style={{ padding: "10px", textAlign: "center" }}>Conta de Despesa</th>
+                  {[
+                    { label: "Fornecedor", key: "fornecedor" },
+                    { label: "Data Pag.", key: "data_pagamento" },
+                    { label: "Valor", key: "valor_total" },
+                    { label: "Fonte Pagadora", key: "conta_credora_descricao" },
+                    { label: "Conta de Despesa", key: "conta_devedora_codigo" }
+                  ].map((h) => (
+                    <th key={h.key} 
+                      onClick={() => handleSort(h.key)}
+                      style={{
+                        padding: "10px", textAlign: "center", whiteSpace: "nowrap",
+                        cursor: "pointer", userSelect: "none"
+                    }}>
+                      {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {despesas.map(d => (
+                {despesasOrdenadas.map(d => (
                   <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
                     <td style={{ padding: "10px", textAlign: "center" }} title={d.fornecedor}>
                       {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
