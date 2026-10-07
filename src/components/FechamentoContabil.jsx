@@ -126,7 +126,7 @@ export default function FechamentoContabil() {
             className="btn-primary" 
             onClick={handleExport} 
             disabled={exporting || despesas.length === 0}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: "13px", height: "auto", minHeight: "36px" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", fontSize: "13px", height: "auto", minHeight: "36px", flex: "none" }}
           >
             {exporting ? <Loader2 size={16} className="spin" /> : <Download size={16} />}
             Gerar Lote Alterdata
