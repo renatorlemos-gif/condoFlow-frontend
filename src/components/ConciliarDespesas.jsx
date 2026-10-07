@@ -506,6 +506,7 @@ export default function ConciliarDespesas() {
   const [transacoes, setTransacoes] = useState([]);
   const [loading, setLoading]     = useState(false);
   const [erro, setErro]           = useState("");
+  const [sortConfig, setSortConfig] = useState({ key: "data_transacao", direction: "asc" });
   const [filtroStatus, setFiltroStatus] = useState(savedFiltros.filtroStatus || "Total");
 
   // Salva filtros sempre que mudarem
@@ -626,7 +627,32 @@ export default function ConciliarDespesas() {
     if (filtroStatus === "Sugestões") return t.status_conciliacao === "sugerida";
     if (filtroStatus === "Pendentes") return t.status_conciliacao === "pendente";
     return true;
+  }).sort((a, b) => {
+    const key = sortConfig.key;
+    if (a[key] === null || a[key] === undefined) return 1;
+    if (b[key] === null || b[key] === undefined) return -1;
+    let valA = a[key];
+    let valB = b[key];
+    
+    if (key === "valor") {
+      valA = Number(valA);
+      valB = Number(valB);
+    } else {
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+    }
+
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
   });
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
+  };
 
   return (
     <div className="page" style={{ maxWidth: 1100 }}>
@@ -742,10 +768,22 @@ export default function ConciliarDespesas() {
                   <thead>
                     <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
                       <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
-                      <th style={{ width: "12%", padding: "10px 8px 10px 0", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Data</th>
-                      <th style={{ width: "38%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Descrição / Banco</th>
-                      <th style={{ width: "15%", padding: "10px 14px", textAlign: "right", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Valor</th>
-                      <th style={{ width: "30%", padding: "10px 14px", textAlign: "center", fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--slate)", fontWeight: 600 }}>Despesa Vinculado</th>
+                      {[
+                        { label: "Data", key: "data_transacao", width: "12%", align: "left", padding: "10px 8px 10px 0" },
+                        { label: "Descrição / Banco", key: "descricao", width: "38%", align: "left", padding: "10px 14px" },
+                        { label: "Valor", key: "valor", width: "15%", align: "right", padding: "10px 14px" },
+                        { label: "Despesa Vinculado", key: "status_conciliacao", width: "30%", align: "left", padding: "10px 14px" }
+                      ].map((h) => (
+                        <th key={h.key} 
+                          onClick={() => handleSort(h.key)}
+                          style={{ 
+                            width: h.width, padding: h.padding, textAlign: h.align, 
+                            fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.06em", 
+                            color: "var(--slate)", fontWeight: 600, cursor: "pointer", userSelect: "none" 
+                          }}>
+                          {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>

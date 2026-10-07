@@ -450,9 +450,9 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
         }
 
         // Se chegou aqui, não há sugestão!
-        if (!form.conta_devedora_id) {
+        if (!showContaDevedora) {
           setShowContaDevedora(true);
-          setErro("A automação não encontrou conciliação para este valor. Selecione a Fonte Pagadora (Crédito) abaixo e confirme novamente para gravar.");
+          setErro("A automação não encontrou conciliação para este valor. Verifique a Fonte Pagadora (Crédito) abaixo e confirme novamente para gravar.");
           setSalvando(false);
           return;
         }
@@ -860,6 +860,7 @@ export default function ValidarDespesas() {
   const [loading, setLoading]   = useState(true);
   const [erro, setErro]         = useState("");
   const [filtro, setFiltro]     = useState("todos");
+  const [sortConfig, setSortConfig] = useState({ key: "data_pagamento", direction: "asc" });
   const [docAberto, setDocAberto] = useState(null);
 
   const isFetchingRef = useRef(false);
@@ -905,10 +906,35 @@ export default function ValidarDespesas() {
   const conciliados = docs.filter(d => d.status === "conciliado").length;
   const erros = docs.filter(d => d.status === "erro").length;
 
-  const docsFiltrados = docs.filter(d => 
+  const docsFiltrados = [...docs].filter(d => 
     filtro === "todos" ? true :
     d.status === filtro
-  );
+  ).sort((a, b) => {
+    const key = sortConfig.key;
+    if (a[key] === null || a[key] === undefined) return 1;
+    if (b[key] === null || b[key] === undefined) return -1;
+    let valA = a[key];
+    let valB = b[key];
+    
+    if (key === "valor_total") {
+      valA = Number(valA);
+      valB = Number(valB);
+    } else {
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+    }
+
+    if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
+    if (valA > valB) return sortConfig.direction === "asc" ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc"
+    }));
+  };
 
   if (docAberto) {
     return (
@@ -978,13 +1004,24 @@ export default function ValidarDespesas() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
-                {["Fornecedor", "Nº Doc", "Data Pagamento", "Valor (R$)", "Status"].map((h) => (
-                  <th key={h} style={{
-                    padding: "10px 14px", textAlign: "center",
-                    fontSize: 10.5, textTransform: "uppercase",
-                    letterSpacing: "0.06em", color: "var(--slate)",
-                    fontWeight: 600,
-                  }}>{h}</th>
+                {[
+                  { label: "Fornecedor", key: "fornecedor" },
+                  { label: "Nº Doc", key: "numero_doc" },
+                  { label: "Data Pagamento", key: "data_pagamento" },
+                  { label: "Valor (R$)", key: "valor_total" },
+                  { label: "Status", key: "status" }
+                ].map((h) => (
+                  <th key={h.key} 
+                    onClick={() => handleSort(h.key)}
+                    style={{
+                      padding: "10px 14px", textAlign: "center",
+                      fontSize: 10.5, textTransform: "uppercase",
+                      letterSpacing: "0.06em", color: "var(--slate)",
+                      fontWeight: 600, cursor: "pointer",
+                      userSelect: "none"
+                  }}>
+                    {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
+                  </th>
                 ))}
               </tr>
             </thead>
