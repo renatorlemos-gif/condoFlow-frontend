@@ -323,8 +323,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
             descricao:       limpaInit(d.descricao),
             chave_acesso:    limpaInit(d.chave_acesso),
             competencia:     limpaInit(d.competencia),
-            conta_codigo:    d.sugestao_contabil?.conta_debito_codigo || "",
-            conta_devedora_id: d.conta_devedora_id || "",
+            conta_codigo:    "", // Será preenchido pelo fetch sugeridas
+            conta_devedora_id: d.fonte_pagadora_id || "",
           });
           
           if (ativo) setLoading(false); // Libera a tela imediatamente para leitura
@@ -340,15 +340,24 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
               .then(contas => {
                 if (ativo) {
                   setPlanoContas(contas);
-                  const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo || d.conta_codigo;
-                  let selectedId = "";
-                  if (defaultCodigo) {
-                    const match = contas.find(c => c.codigo_contabil === defaultCodigo);
-                    if (match) selectedId = match.id;
+                  
+                  // 1. Usa o UUID que o usuário já salvou no banco (se existir)
+                  let selectedId = d.conta_despesa_id;
+                  
+                  // 2. Se for novo/não salvo, tenta usar a sugestão da IA baseada no código
+                  if (!selectedId) {
+                    const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo;
+                    if (defaultCodigo) {
+                      const match = contas.find(c => c.codigo_contabil === defaultCodigo);
+                      if (match) selectedId = match.id;
+                    }
                   }
+                  
+                  // 3. Fallback
                   if (!selectedId && contas.length > 0) {
                     selectedId = contas[0].id;
                   }
+                  
                   if (selectedId) {
                     setForm(prev => ({ ...prev, conta_codigo: selectedId }));
                   }
