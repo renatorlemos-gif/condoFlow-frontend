@@ -327,17 +327,17 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
             conta_devedora_id: d.conta_devedora_id || "",
           });
           
-                    try {
-            const resCB = await fetch(`${API_URL()}/api/v1/fontes-pagadoras?condominio_id=${d.condominio_id}`);
-            if (resCB.ok) {
-              const cbData = await resCB.json();
-              if (ativo) setContasBancarias(cbData);
-            }
-          } catch (errCB) { console.error(errCB); }
-                      try {
-              const resPlano = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/contas-sugeridas`);
-              if (resPlano.ok) {
-                const contas = await resPlano.json();
+          if (ativo) setLoading(false); // Libera a tela imediatamente para leitura
+          
+          Promise.all([
+            fetch(`${API_URL()}/api/v1/fontes-pagadoras?condominio_id=${d.condominio_id}`)
+              .then(res => res.ok ? res.json() : [])
+              .then(cbData => { if (ativo) setContasBancarias(cbData); })
+              .catch(console.error),
+              
+            fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/contas-sugeridas`)
+              .then(res => res.ok ? res.json() : [])
+              .then(contas => {
                 if (ativo) {
                   setPlanoContas(contas);
                   const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo || d.conta_codigo;
@@ -353,13 +353,12 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
                     setForm(prev => ({ ...prev, conta_codigo: selectedId }));
                   }
                 }
-              }
-            } catch (errPlano) {
-              console.error("Erro ao carregar contas sugeridas", errPlano);
-            }
+              })
+              .catch(console.error)
+          ]);
         }
       } catch (err) {
-        if (ativo) setErro("Não foi possível carregar o despesa.");
+        if (ativo) setErro("Não foi possível carregar a despesa.");
       } finally {
         if (ativo) setLoading(false);
       }
