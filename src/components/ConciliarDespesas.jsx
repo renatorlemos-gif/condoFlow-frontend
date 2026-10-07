@@ -556,14 +556,14 @@ export default function ConciliarDespesas() {
     setLoading(true);
     setErro("");
     setSelecionadasTrans(new Set());
-    const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, limit: "200" });
+    const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, condominio_id: selectedCondoId || "", limit: "200" });
     // Categorias agora são filtradas localmente
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
       .then(r => r.json())
       .then(setTransacoes)
       .catch(() => setErro("Não foi possível carregar as transações."))
       .finally(() => setLoading(false));
-  }, [mesAnoSelecionado]);
+  }, [mesAnoSelecionado, selectedCondoId]);
 
   useEffect(() => { carregar(); }, [carregar]);
 

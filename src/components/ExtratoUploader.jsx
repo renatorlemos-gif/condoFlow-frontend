@@ -16,8 +16,8 @@ export default function ExtratoUploader() {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
   useEffect(() => {
-    if (selectedCondoId) {
-      fetch(`${API_URL}/api/v1/fontes-pagadoras/?condominio_id=${selectedCondoId}`)
+    if (currentCondo?.id) {
+      fetch(`${API_URL}/api/v1/fontes-pagadoras/?condominio_id=${currentCondo.id}`)
         .then(res => res.json())
         .then(data => {
           const bancarias = Array.isArray(data) ? data.filter(f => f.exige_conciliacao_extrato === true) : [];
@@ -30,7 +30,7 @@ export default function ExtratoUploader() {
         })
         .catch(err => console.error(err));
     }
-  }, [selectedCondoId, API_URL]);
+  }, [currentCondo?.id, API_URL]);
 
   const resetFeedback = () => {
     setStatus("idle");

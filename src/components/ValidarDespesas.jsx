@@ -855,7 +855,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
 /* ------------------------------------------------------------------ */
 /*  Tela de lista                                                       */
 /* ------------------------------------------------------------------ */
-export default function ValidarDespesas() {
+export default function ValidarDespesas() { const { currentCondo, mesAnoSelecionado } = useCondo();
   const [docs, setDocs]         = useState([]);
   const [loading, setLoading]   = useState(true);
   const [erro, setErro]         = useState("");
@@ -867,13 +867,13 @@ export default function ValidarDespesas() {
 
   const carregar = useCallback(async () => {
     if (isFetchingRef.current) return;
-    isFetchingRef.current = true;
+    isFetchingRef.current = true; if (!currentCondo || !mesAnoSelecionado) { setDocs([]); setLoading(false); isFetchingRef.current = false; return; }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas?status=todos&limit=100`, {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas?status=todos&limit=100&condominio_id=${currentCondo.id}&mes_ano=${mesAnoSelecionado}`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);
@@ -892,7 +892,7 @@ export default function ValidarDespesas() {
       isFetchingRef.current = false;
       setLoading(false);
     }
-  }, []);
+  }, [currentCondo, mesAnoSelecionado]);
 
   useEffect(() => { 
     carregar(); 
