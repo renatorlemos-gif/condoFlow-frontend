@@ -372,10 +372,10 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         </td>
         
         {/* Transação */}
-        <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace", textAlign: "left" }}>
+        <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace", textAlign: "center" }}>
           {formatDate(trans.data_transacao)}
         </td>
-        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word", textAlign: "left" }}>
+        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word", textAlign: "center" }}>
           <span style={{ display: "block", wordBreak: "break-word" }}>
             {trans.descricao || "—"}
           </span>
@@ -383,12 +383,12 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         </td>
         <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 13,
                      fontWeight: 600, color: trans.tipo === "credito" ? "var(--ledger)" : "var(--ink)",
-                     textAlign: "right", whiteSpace: "nowrap" }}>
+                     textAlign: "center", whiteSpace: "nowrap" }}>
           {trans.tipo === "debito" ? "−" : "+"}R$ {formatBRL(trans.valor)}
         </td>
 
         {/* Despesa vinculado & Ações */}
-        <td style={{ padding: "11px 14px", wordBreak: "break-word", textAlign: "left" }}>
+        <td style={{ padding: "11px 14px", wordBreak: "break-word", textAlign: "center" }}>
           <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
             {trans.status_conciliacao === "conciliada_em_lote" ? (
@@ -769,10 +769,10 @@ export default function ConciliarDespesas() {
                     <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
                       <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
                       {[
-                        { label: "Data", key: "data_transacao", width: "12%", align: "left", padding: "10px 8px 10px 0" },
-                        { label: "Descrição / Banco", key: "descricao", width: "38%", align: "left", padding: "10px 14px" },
-                        { label: "Valor", key: "valor", width: "15%", align: "right", padding: "10px 14px" },
-                        { label: "Despesa Vinculado", key: "status_conciliacao", width: "30%", align: "left", padding: "10px 14px" }
+                        { label: "Data", key: "data_transacao", width: "12%", align: "center", padding: "10px 8px 10px 0" },
+                        { label: "Descrição / Banco", key: "descricao", width: "38%", align: "center", padding: "10px 14px" },
+                        { label: "Valor", key: "valor", width: "15%", align: "center", padding: "10px 14px" },
+                        { label: "Despesa Vinculado", key: "status_conciliacao", width: "30%", align: "center", padding: "10px 14px" }
                       ].map((h) => (
                         <th key={h.key} 
                           onClick={() => handleSort(h.key)}
