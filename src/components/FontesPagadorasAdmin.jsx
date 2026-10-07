@@ -94,7 +94,7 @@ export default function FontesPagadorasAdmin() {
     const method = isEdit ? "PATCH" : "POST";
 
     try {
-      const payload = { ...novaFonte, condominio_id: localCondoId };
+      const payload = { ...novaFonte, condominio_id: localCondoId }; if (payload.plano_conta_id === "") payload.plano_conta_id = null;
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
