@@ -158,7 +158,7 @@ export default function ExtratoUploader() {
             >
               {contasBancarias.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.nome} ({c.banco} - Ag: {c.agencia} CC: {c.conta})
+                  {c.nome}
                 </option>
               ))}
               {contasBancarias.length === 0 && <option value="">Nenhuma fonte encontrada</option>}
