@@ -372,10 +372,10 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         </td>
         
         {/* Transação */}
-        <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace" }}>
+        <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace", textAlign: "left" }}>
           {formatDate(trans.data_transacao)}
         </td>
-        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word" }}>
+        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word", textAlign: "left" }}>
           <span style={{ display: "block", wordBreak: "break-word" }}>
             {trans.descricao || "—"}
           </span>
@@ -388,7 +388,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         </td>
 
         {/* Despesa vinculado & Ações */}
-        <td style={{ padding: "11px 14px", wordBreak: "break-word" }}>
+        <td style={{ padding: "11px 14px", wordBreak: "break-word", textAlign: "left" }}>
           <div style={{ display: "flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
             {trans.status_conciliacao === "conciliada_em_lote" ? (
