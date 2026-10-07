@@ -616,7 +616,14 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
           onValidarDepois={(e) => {
             if (e) { e.preventDefault(); e.stopPropagation(); }
             setSugestao(null);
-            handleAcao("confirmar", sugestao.fonte_pagadora_id || null);
+            const fonteFinal = form.conta_devedora_id || sugestao.fonte_pagadora_id;
+            if (!fonteFinal) {
+              setShowContaDevedora(true);
+              setErro("A Fonte Pagadora (Crédito) é obrigatória para validar. Selecione-a abaixo e confirme novamente.");
+              setSalvando(false);
+              return;
+            }
+            handleAcao("confirmar", fonteFinal);
           }}
           onCancel={(e) => {
             if (e) { e.preventDefault(); e.stopPropagation(); }
