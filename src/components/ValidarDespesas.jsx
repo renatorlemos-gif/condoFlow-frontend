@@ -1079,22 +1079,23 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
       </div>
 
       {/* Filtros + reload */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "nowrap", alignItems: "center", width: "100%", overflowX: "auto" }}>
         {[
           { label: "Todos", value: "todos", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },
           { label: "Aguardando", value: "extraido", valor: aguardando, bg: "#f5ead9", cor: "#b8875a" },
-          { label: "Revisar", value: "revisao", valor: emRevisaoCount, bg: "#f1f5f9", cor: "#64748b" },
           { label: "Validados", value: "validado", valor: validados, bg: "#e4efe9", cor: "#21503e" },
           { label: "Conciliados", value: "conciliado", valor: conciliados, bg: "#e0f2fe", cor: "#0369a1" },
+          { label: "Revisar", value: "revisao", valor: emRevisaoCount, bg: "#f1f5f9", cor: "#64748b" },
           { label: "Com erro", value: "erro", valor: erros, bg: "#f6e6e1", cor: "#b3452f" },
         ].map(item => (
           <div key={item.value} onClick={() => setFiltro(item.value)} style={{
-            background: item.bg, borderRadius: 10, padding: "10px 16px",
-            border: "1px solid var(--line)", minWidth: 100, cursor: "pointer",
+            background: item.bg, borderRadius: 10, padding: "10px 12px",
+            border: "1px solid var(--line)", flex: 1, minWidth: 0, cursor: "pointer",
             opacity: filtro === item.value ? 1 : 0.6,
+            textAlign: "center"
           }}>
-            <p style={{ margin: 0, fontSize: 10.5, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--slate)", fontWeight: 600 }}>{item.label}</p>
-            <p style={{ margin: "4px 0 0", fontSize: 22, fontWeight: 700, color: item.cor, fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
+            <p style={{ margin: 0, fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--slate)", fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.label}</p>
+            <p style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 700, color: item.cor, fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
           </div>
         ))}
 
