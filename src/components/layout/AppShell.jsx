@@ -160,7 +160,7 @@ export default function AppShell({
             >
               {condominios.map((c) => (
                 <option key={c.id} value={c.id}>
-                  📍 {c.nome} ({c.cidade || "SP"})
+                  📍 {c.nome}
                 </option>
               ))}
             </select>

@@ -60,6 +60,7 @@ export function CondoProvider({ children }) {
         const response = await fetch(`${API_URL}/api/v1/contexto/condominios?administradora_id=${selectedAdmId}`);
         if (response.ok) {
           const data = await response.json();
+          data.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
           setCondominios(data);
 
           // Se o condomínio atual não pertencer à nova administradora, reseta para o primeiro

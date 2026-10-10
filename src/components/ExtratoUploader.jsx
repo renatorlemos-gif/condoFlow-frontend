@@ -170,10 +170,7 @@ export default function ExtratoUploader() {
             )}
           </div>
           
-          <div className="field">
-            <span className="field__label">Nº do lote</span>
-            <span className="field__mono">CF-{new Date().getFullYear()}-AUTO</span>
-          </div>
+          
         </div>
 
         <label
@@ -271,3 +268,4 @@ export default function ExtratoUploader() {
     </div>
   );
 }
+
