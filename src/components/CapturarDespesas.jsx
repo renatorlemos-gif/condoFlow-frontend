@@ -238,7 +238,7 @@ export default function CapturarDespesas() {
         ) : files.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '16px', padding: '16px 0' }}>
-              <div style={{ position: 'relative', width: '100%', height: '384px', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ position: 'relative', width: '100%', height: 'clamp(200px, 100dvh - 420px, 400px)', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', backgroundColor: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {/* Botão Anterior */}
                 {files.length > 1 && (
                   <button
@@ -260,7 +260,7 @@ export default function CapturarDespesas() {
                     previewUrl += "#navpanes=0&view=FitH";
                   }
                   return (
-                    <object data={previewUrl} type={file.type} className="w-full h-96" style={{ width: '100%', height: '100%', objectFit: 'contain' }}>
+                    <object data={previewUrl} type={file.type} className="w-full" style={{ width: '100%', height: '100%', objectFit: 'contain' }}>
                       <p style={{ padding: '16px', color: '#64748b' }}>Seu navegador não suporta a visualização deste arquivo ({file.name}).</p>
                     </object>
                   );
