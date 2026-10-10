@@ -988,29 +988,6 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
     setRevisaoIds(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
   }, []);
 
-  const handleExcluirDespesa = useCallback(async (e, docId) => {
-    e.stopPropagation();
-    if (!window.confirm("Tem certeza que deseja excluir permanentemente esta despesa e seus documentos?\nSe houver conciliação associada, ela também será desfeita.\n\nEsta ação NÃO pode ser desfeita.")) {
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
-        method: "DELETE"
-      });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => null);
-        throw new Error(errorData?.detail || "Erro ao excluir despesa.");
-      }
-      setRevisaoIds(prev => prev.filter(x => x !== docId));
-      await carregar();
-    } catch (err) {
-      setErro(err.message);
-      setLoading(false);
-    }
-  }, [carregar]);
-
   const isFetchingRef = useRef(false);
 
   const carregar = useCallback(async () => {
@@ -1041,6 +1018,30 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
       setLoading(false);
     }
   }, [currentCondo, mesAnoSelecionado]);
+
+  const handleExcluirDespesa = useCallback(async (e, docId) => {
+    e.stopPropagation();
+    if (!window.confirm("Tem certeza que deseja excluir permanentemente esta despesa e seus documentos?\nSe houver conciliação associada, ela também será desfeita.\n\nEsta ação NÃO pode ser desfeita.")) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.detail || "Erro ao excluir despesa.");
+      }
+      setRevisaoIds(prev => prev.filter(x => x !== docId));
+      await carregar();
+    } catch (err) {
+      setErro(err.message);
+      setLoading(false);
+    }
+  }, [carregar]);
+
 
   useEffect(() => { 
     carregar(); 
