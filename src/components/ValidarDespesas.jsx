@@ -341,7 +341,7 @@ function ModalConciliacaoImediata({ transacao, docId, onConfirm, onValidarDepois
 /* ------------------------------------------------------------------ */
 /*  Tela de detalhe / validação                                         */
 /* ------------------------------------------------------------------ */
-function DetalheDespesa({ docId, onVoltar, onSalvo }) {
+function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao }) {
   const { mesAnoSelecionado, selectedCondoId } = useCondo();
   const [doc, setDoc]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -741,7 +741,15 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
           <span className="page__eyebrow">Validação</span>
           <h1 className="page__title" style={{ margin: 0 }}>{doc.filename}</h1>
         </div>
-        <div style={{ marginLeft: "auto" }}>{statusBadge(doc.status)}</div>
+        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 16 }}>
+          {revisaoIds && (
+            <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13, fontWeight: 600, color: "var(--slate)" }}>
+              <input type="checkbox" checked={revisaoIds.includes(docId)} onChange={(e) => toggleRevisao(docId, e.target.checked)} />
+              Marcar Revisão
+            </label>
+          )}
+          {statusBadge(doc.status)}
+        </div>
       </div>
 
       {/* Split screen */}
@@ -951,6 +959,23 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
   const [sortConfig, setSortConfig] = useState({ key: "data_pagamento", direction: "asc" });
   const [docAberto, setDocAberto] = useState(null);
 
+  const [revisaoIds, setRevisaoIds] = useState(() => {
+    try {
+      const stored = sessionStorage.getItem("revisaoIds");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    sessionStorage.setItem("revisaoIds", JSON.stringify(revisaoIds));
+  }, [revisaoIds]);
+
+  const toggleRevisao = useCallback((id, checked) => {
+    setRevisaoIds(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
+  }, []);
+
   const isFetchingRef = useRef(false);
 
   const carregar = useCallback(async () => {
@@ -989,15 +1014,18 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
   }, [carregar]);
 
   const total = docs.length;
-  const aguardando = docs.filter(d => d.status === "extraido").length;
-  const validados = docs.filter(d => d.status === "validado").length;
-  const conciliados = docs.filter(d => d.status === "conciliado").length;
-  const erros = docs.filter(d => d.status === "erro").length;
+  const emRevisaoCount = docs.filter(d => revisaoIds.includes(d.id)).length;
+  const aguardando = docs.filter(d => d.status === "extraido" && !revisaoIds.includes(d.id)).length;
+  const validados = docs.filter(d => d.status === "validado" && !revisaoIds.includes(d.id)).length;
+  const conciliados = docs.filter(d => d.status === "conciliado" && !revisaoIds.includes(d.id)).length;
+  const erros = docs.filter(d => d.status === "erro" && !revisaoIds.includes(d.id)).length;
 
-  const docsFiltrados = [...docs].filter(d => 
-    filtro === "todos" ? true :
-    d.status === filtro
-  ).sort((a, b) => {
+  const docsFiltrados = [...docs].filter(d => {
+    if (filtro === "todos") return true;
+    if (filtro === "revisao") return revisaoIds.includes(d.id);
+    if (revisaoIds.includes(d.id)) return false; // Hide reviewed items from other tabs
+    return d.status === filtro;
+  }).sort((a, b) => {
     const key = sortConfig.key;
     if (a[key] === null || a[key] === undefined) return 1;
     if (b[key] === null || b[key] === undefined) return -1;
@@ -1029,7 +1057,13 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
       <DetalheDespesa
         docId={docAberto}
         onVoltar={() => { setDocAberto(null); carregar(); }}
-        onSalvo={() => { setDocAberto(null); carregar(); }}
+        onSalvo={() => { 
+          toggleRevisao(docAberto, false);
+          setDocAberto(null); 
+          carregar(); 
+        }}
+        revisaoIds={revisaoIds}
+        toggleRevisao={toggleRevisao}
       />
     );
   }
@@ -1049,6 +1083,7 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
         {[
           { label: "Todos", value: "todos", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },
           { label: "Aguardando", value: "extraido", valor: aguardando, bg: "#f5ead9", cor: "#b8875a" },
+          { label: "Revisar", value: "revisao", valor: emRevisaoCount, bg: "#f1f5f9", cor: "#64748b" },
           { label: "Validados", value: "validado", valor: validados, bg: "#e4efe9", cor: "#21503e" },
           { label: "Conciliados", value: "conciliado", valor: conciliados, bg: "#e0f2fe", cor: "#0369a1" },
           { label: "Com erro", value: "erro", valor: erros, bg: "#f6e6e1", cor: "#b3452f" },
