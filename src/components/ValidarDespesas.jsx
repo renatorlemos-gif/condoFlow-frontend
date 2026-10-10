@@ -124,46 +124,119 @@ function FotoModal({ url, onClose }) {
 /* ------------------------------------------------------------------ */
 /*  Campo de data com placeholder e picker inteligente                  */
 /* ------------------------------------------------------------------ */
-function CampoData({ value, onChange, placeholder = "Não identificado", style, className }) {
+function MaskedDateInput({ value, onChange, placeholder, style, className }) {
+  const formatValue = (val) => {
+    if (!val) return "";
+    const parts = val.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return val;
+  };
+
+  const [display, setDisplay] = useState(formatValue(value));
   const [focused, setFocused] = useState(false);
-  const inputType = (focused || Boolean(value)) ? "date" : "text";
 
-  const handleFocus = (e) => {
-    e.target.type = "date";
-    setFocused(true);
-    if (typeof e.target.showPicker === "function") {
-      try {
-        e.target.showPicker();
-      } catch (_) {}
+  useEffect(() => {
+    if (!focused) {
+      setDisplay(formatValue(value));
+    }
+  }, [value, focused]);
+
+  const handleChange = (e) => {
+    let raw = e.target.value.replace(/\D/g, "");
+    if (raw.length > 8) raw = raw.slice(0, 8);
+    let masked = raw;
+    if (raw.length > 4) {
+      masked = `${raw.slice(0, 2)}/${raw.slice(2, 4)}/${raw.slice(4)}`;
+    } else if (raw.length > 2) {
+      masked = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+    }
+    setDisplay(masked);
+
+    if (raw.length === 8) {
+      const d = raw.slice(0, 2);
+      const m = raw.slice(2, 4);
+      const y = raw.slice(4, 8);
+      if (Number(m) >= 1 && Number(m) <= 12 && Number(d) >= 1 && Number(d) <= 31) {
+        onChange({ target: { value: `${y}-${m}-${d}` } });
+      } else {
+        onChange({ target: { value: "" } });
+      }
+    } else {
+      onChange({ target: { value: "" } }); 
     }
   };
 
-  const handleClick = (e) => {
-    if (typeof e.target.showPicker === "function") {
-      try {
-        e.target.showPicker();
-      } catch (_) {}
+  return <input type="text" className={`${className || ""} ${!value ? "input--missing" : ""}`.trim()} style={style} placeholder={placeholder || "DD/MM/YYYY"} value={display} onChange={handleChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />;
+}
+
+function MaskedCompInput({ value, onChange, placeholder, style, className }) {
+  const [display, setDisplay] = useState(value || "");
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setDisplay(value || "");
+    }
+  }, [value, focused]);
+
+  const handleChange = (e) => {
+    let raw = e.target.value.replace(/\D/g, "");
+    if (raw.length > 6) raw = raw.slice(0, 6);
+    let masked = raw;
+    if (raw.length > 2) {
+      masked = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+    }
+    setDisplay(masked);
+
+    if (raw.length === 6) {
+      onChange({ target: { value: masked } });
+    } else {
+      onChange({ target: { value: "" } });
     }
   };
 
-  const handleBlur = (e) => {
-    setFocused(false);
-    if (!e.target.value) {
-      e.target.type = "text";
+  return <input type="text" className={`${className || ""} ${!value ? "input--missing" : ""}`.trim()} style={style} placeholder={placeholder || "MM/YYYY"} value={display} onChange={handleChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />;
+}
+
+function MaskedCurrencyInput({ value, onChange, placeholder, style, className }) {
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined || val === "") return "";
+    const n = Number(val);
+    if (isNaN(n)) return "";
+    return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  
+  const [display, setDisplay] = useState("");
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) {
+      setDisplay(formatCurrency(value));
     }
+  }, [value, focused]);
+
+  const handleChange = (e) => {
+    let raw = e.target.value.replace(/\D/g, "");
+    if (!raw) {
+       setDisplay("");
+       onChange({ target: { value: "" } });
+       return;
+    }
+    const num = Number(raw) / 100;
+    setDisplay(num.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+    onChange({ target: { value: num } });
   };
 
   return (
-    <input
-      type={inputType}
-      className={`${className || ""} ${!value ? "input--missing" : ""}`.trim()}
-      placeholder={placeholder}
-      style={style}
-      value={value ?? ""}
-      onChange={onChange}
-      onFocus={handleFocus}
-      onClick={handleClick}
-      onBlur={handleBlur}
+    <input 
+      type="text" 
+      className={`${className || ""} ${value === "" || value === null ? "input--missing" : ""}`.trim()} 
+      style={style} 
+      placeholder={placeholder || "0,00"} 
+      value={display} 
+      onChange={handleChange}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
     />
   );
 }
@@ -576,23 +649,38 @@ function DetalheDespesa({ docId, onVoltar, onSalvo }) {
 
   const campo = (label, key, type = "text", placeholder = "Não identificado") => {
     const val = form[key] ?? "";
-    const isMissing = !val;
+    const isMissing = val === null || val === "";
 
     return (
       <div className="field">
         <span className="field__label">{label}</span>
-        {type === "date" ? (
-          <CampoData
+        {key === "competencia" ? (
+          <MaskedCompInput
             value={val}
             onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
-            placeholder={placeholder}
+            placeholder="MM/YYYY"
+            style={{ textAlign: "center" }}
+            className="input"
+          />
+        ) : type === "date" ? (
+          <MaskedDateInput
+            value={val}
+            onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+            placeholder="DD/MM/YYYY"
+            style={{ textAlign: "center" }}
+            className="input"
+          />
+        ) : type === "number" || key === "valor_total" ? (
+          <MaskedCurrencyInput
+            value={val}
+            onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+            placeholder="0,00"
             style={{ textAlign: "center" }}
             className="input"
           />
         ) : (
           <input
-            type={type}
-            step={type === "number" ? "any" : undefined}
+            type="text"
             className={`input ${isMissing ? "input--missing" : ""}`.trim()}
             placeholder={placeholder}
             style={{ textAlign: "center" }}
