@@ -10,6 +10,18 @@ const iconBase = (size, sw) => ({
   strokeWidth: sw, strokeLinecap: "round", strokeLinejoin: "round",
 });
 
+function Trash2({ size = 18, strokeWidth = 2, className }) {
+  return (
+    <svg {...iconBase(size, strokeWidth)} className={className}>
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+      <line x1="10" x2="10" y1="11" y2="17" />
+      <line x1="14" x2="14" y1="11" y2="17" />
+    </svg>
+  );
+}
+
 function Loader2({ size = 18, strokeWidth = 2, className }) {
   return <svg {...iconBase(size, strokeWidth)} className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>;
 }
@@ -976,6 +988,29 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
     setRevisaoIds(prev => checked ? [...prev, id] : prev.filter(x => x !== id));
   }, []);
 
+  const handleExcluirDespesa = useCallback(async (e, docId) => {
+    e.stopPropagation();
+    if (!window.confirm("Tem certeza que deseja excluir permanentemente esta despesa e seus documentos?\nSe houver conciliação associada, ela também será desfeita.\n\nEsta ação NÃO pode ser desfeita.")) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.detail || "Erro ao excluir despesa.");
+      }
+      setRevisaoIds(prev => prev.filter(x => x !== docId));
+      await carregar();
+    } catch (err) {
+      setErro(err.message);
+      setLoading(false);
+    }
+  }, [carregar]);
+
   const isFetchingRef = useRef(false);
 
   const carregar = useCallback(async () => {
@@ -1147,6 +1182,7 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                     {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
                   </th>
                 ))}
+                <th style={{ width: 44, padding: "10px 8px" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -1188,12 +1224,33 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                           })()
                         : "—"}
                     </td>
-                  <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
+                    <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
                       {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
                     </td>
                     <td style={{ padding: "11px 14px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
-                  
-                </tr>
+                    <td style={{ padding: "11px 8px", textAlign: "center", width: 44 }}>
+                      <button
+                        type="button"
+                        onClick={(e) => handleExcluirDespesa(e, doc.id)}
+                        title="Excluir permanentemente"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          cursor: "pointer",
+                          color: "var(--slate)",
+                          padding: "4px",
+                          borderRadius: "4px",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = "#ef4444"}
+                        onMouseLeave={(e) => e.currentTarget.style.color = "var(--slate)"}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
                 );
               })}
             </tbody>
