@@ -8,7 +8,7 @@ export default function CadastrosBasicos() {
   const [planoContas, setPlanoContas] = useState([]);
 
   const [formAdmin, setFormAdmin] = useState({ nome: "", cnpj: "" });
-  const [formCondo, setFormCondo] = useState({ administradora_id: "", nome: "", cnpj: "", cidade: "", uf: "" });
+  const [formCondo, setFormCondo] = useState({ id: "", administradora_id: "", nome: "", cnpj: "", cidade: "", uf: "" });
 
   const baseURL = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api/v1` : "http://localhost:8000/api/v1";
 
@@ -60,12 +60,18 @@ export default function CadastrosBasicos() {
   const handleSalvarCondo = async (e) => {
     e.preventDefault();
     try {
-      await fetch(`${baseURL}/cadastros/condominios`, {
-        method: "POST",
+      const url = formCondo.id 
+        ? `${baseURL}/cadastros/condominios/${formCondo.id}`
+        : `${baseURL}/cadastros/condominios`;
+      const method = formCondo.id ? "PUT" : "POST";
+      const { id, ...payload } = formCondo;
+      
+      await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formCondo)
+        body: JSON.stringify(payload)
       });
-      setFormCondo({ administradora_id: "", nome: "", cnpj: "", cidade: "", uf: "" });
+      setFormCondo({ id: "", administradora_id: "", nome: "", cnpj: "", cidade: "", uf: "" });
       carregarDados();
     } catch (error) {
       console.error("Erro ao salvar condomínio:", error);
@@ -185,20 +191,30 @@ export default function CadastrosBasicos() {
             </form>
 
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {condominios.filter(c => c.ativo).map(condo => {
+              {condominios.filter(c => c.ativo).sort((a,b) => (a.nome||'').localeCompare(b.nome||'')).map(condo => {
                 const adm = administradoras.find(a => a.id === condo.administradora_id);
                 return (
                   <li key={condo.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--line)" }}>
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span style={{ fontWeight: "500", color: "var(--ink)" }}>{condo.nome}</span>
-                      <span style={{ fontSize: "12px", color: "var(--slate)" }}>{adm?.nome}</span>
+                      <span style={{ fontWeight: "500", color: "var(--ink)", fontSize: "14px" }}>{condo.nome}</span>
+                      <span style={{ fontSize: "12px", color: "var(--slate)", marginTop: "2px" }}>
+                        {adm?.nome}{condo.cnpj ? ` | CNPJ: ${condo.cnpj}` : ""}
+                      </span>
                     </div>
-                    <button 
-                      onClick={() => handleDeletarCondo(condo.id)}
-                      style={{ color: "var(--danger)", background: "transparent", border: "none", cursor: "pointer", fontWeight: "500" }}
-                    >
-                      Excluir
-                    </button>
+                    <div style={{ display: "flex", gap: "12px" }}>
+                      <button 
+                        onClick={() => setFormCondo({ id: condo.id, administradora_id: condo.administradora_id, nome: condo.nome, cnpj: condo.cnpj || "", cidade: condo.cidade || "", uf: condo.uf || "" })}
+                        style={{ color: "var(--primary)", background: "transparent", border: "none", cursor: "pointer", fontWeight: "500" }}
+                      >
+                        Editar
+                      </button>
+                      <button 
+                        onClick={() => handleDeletarCondo(condo.id)}
+                        style={{ color: "var(--danger)", background: "transparent", border: "none", cursor: "pointer", fontWeight: "500" }}
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </li>
                 );
               })}
