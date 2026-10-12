@@ -598,14 +598,34 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
       if (acao === "confirmar" && mesAnoSelecionado) {
         if (forcedContaDevedoraId !== undefined) {
           await salvarDespesaPatch("confirmar", forcedContaDevedoraId);
-          setShowToast("Despesa validado com sucesso. A conciliação será feita depois.");
+          setShowToast("Despesa validada com sucesso. A conciliação será feita depois.");
           setTimeout(() => onSalvo(), 2000);
           setSalvando(false);
           return;
         }
 
+        // 1. Persiste as alterações da tela imediatamente via ação "salvar"
+        await salvarDespesaPatch("salvar");
+
+        // 2. Monta parâmetros dinâmicos com os dados da tela para busca de sugestões
+        const queryParams = new URLSearchParams({
+          mes_ano: mesAnoSelecionado,
+          condominio_id: selectedCondoId || "",
+        });
+        if (form.valor_total !== null && form.valor_total !== "" && form.valor_total !== undefined) {
+          queryParams.append("valor_total", form.valor_total);
+        }
+        if (form.data_pagamento) {
+          queryParams.append("data_pagamento", form.data_pagamento);
+        }
+        if (form.data_emissao) {
+          queryParams.append("data_emissao", form.data_emissao);
+        }
+
         try {
-          const sugResp = await fetch(`${API_URL()}/api/v1/conciliacao/sugestoes-despesa/${docId}?mes_ano=${mesAnoSelecionado}&condominio_id=${selectedCondoId || ""}`);
+          const sugResp = await fetch(
+            `${API_URL()}/api/v1/conciliacao/sugestoes-despesa/${docId}?${queryParams.toString()}`
+          );
           if (sugResp.ok) {
             const sugData = await sugResp.json();
             if (sugData.tem_sugestao && sugData.sugestao) {
@@ -631,7 +651,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
         const date = new Date(ano, parseInt(mes) - 1);
         const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
         const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
-        setShowToast(`Despesa validado. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
+        setShowToast(`Despesa validada. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
         setTimeout(() => onSalvo(), 3000);
         setSalvando(false);
         return;
