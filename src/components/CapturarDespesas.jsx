@@ -1,5 +1,16 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useCondo } from "../context/CondoContext";
+
+/* ------------------------------------------------------------------ */
+/*  Detecção de Dispositivo Mobile (US-03, US-04)                     */
+/* ------------------------------------------------------------------ */
+export const isMobileDevice = () => {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return false;
+  const userAgent = navigator.userAgent || navigator.vendor || window.opera || "";
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const hasTouch = (navigator.maxTouchPoints || 0) > 0;
+  return isMobileUA && hasTouch;
+};
 
 /* ------------------------------------------------------------------ */
 /*  Ícones inline                                                       */
@@ -88,7 +99,10 @@ export default function CapturarDespesas() {
   const [status, setStatus] = useState("idle"); // idle | uploading | success | error
   const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const inputRef = useRef(null);
+
+  const isMobile = useMemo(() => isMobileDevice(), []);
+  const cameraInputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const abortRef = useRef(null);
 
   // Criar URLs para pre-visualizar as imagens
@@ -120,8 +134,22 @@ export default function CapturarDespesas() {
     setPreviews({});
     setStatus("idle");
     setErrorMsg("");
-    if (inputRef.current) inputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, [previews]);
+
+  // Auto-Reset temporizado de 1.5s após envio bem-sucedido (US-01, RF-36)
+  useEffect(() => {
+    let timer = null;
+    if (status === "success") {
+      timer = setTimeout(() => {
+        resetar();
+      }, 1500);
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [status, resetar]);
 
   const addFiles = useCallback((newFilesList) => {
     if (!newFilesList || newFilesList.length === 0) return;
@@ -130,6 +158,14 @@ export default function CapturarDespesas() {
     const arr = Array.from(newFilesList);
     setFiles((prev) => [...prev, ...arr]);
   }, []);
+
+  const handleDropzoneClick = useCallback(() => {
+    if (isMobile) {
+      cameraInputRef.current?.click();
+    } else {
+      fileInputRef.current?.click();
+    }
+  }, [isMobile]);
 
   const handleDrag = useCallback((e, active) => {
     e.preventDefault(); e.stopPropagation(); setDragActive(active);
@@ -201,6 +237,30 @@ export default function CapturarDespesas() {
 
   return (
     <div className="page">
+      {/* Inputs Ocultos Dedicados para Captura (US-03, US-04) */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        style={{ display: "none" }}
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".pdf,.png,.jpg,.jpeg"
+        multiple
+        style={{ display: "none" }}
+        onChange={(e) => {
+          addFiles(e.target.files);
+          e.target.value = "";
+        }}
+      />
+
       <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <span className="page__eyebrow">Digitalização</span>
         <h1 className="page__title">Capturar Despesas</h1>
@@ -211,30 +271,54 @@ export default function CapturarDespesas() {
 
       <div className="slip">
         {files.length === 0 && status !== "success" ? (
-          <label
-            className={`dropzone ${dragActive ? "dropzone--active" : ""}`}
-            onDragOver={(e) => handleDrag(e, true)}
-            onDragEnter={(e) => handleDrag(e, true)}
-            onDragLeave={(e) => handleDrag(e, false)}
-            onDrop={handleDrop}
-          >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
-              capture="environment"
-              multiple
-              className="dropzone__input"
-              onChange={(e) => addFiles(e.target.files)}
-            />
-            <div className="dropzone__empty">
-              <span className="dropzone__icon">
-                <UploadCloud size={22} strokeWidth={1.8} />
-              </span>
-              <span className="dropzone__title">Fotografe ou arraste despesas</span>
-              <span className="dropzone__hint">PDF, JPG ou PNG · toque para abrir a câmera</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
+            <div
+              role="button"
+              tabIndex={0}
+              className={`dropzone ${dragActive ? "dropzone--active" : ""}`}
+              onClick={handleDropzoneClick}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleDropzoneClick(); }}
+              onDragOver={(e) => handleDrag(e, true)}
+              onDragEnter={(e) => handleDrag(e, true)}
+              onDragLeave={(e) => handleDrag(e, false)}
+              onDrop={handleDrop}
+              style={{ cursor: 'pointer', width: '100%' }}
+            >
+              <div className="dropzone__empty">
+                <span className="dropzone__icon">
+                  <UploadCloud size={22} strokeWidth={1.8} />
+                </span>
+                <span className="dropzone__title">Fotografe ou arraste despesas</span>
+                <span className="dropzone__hint">
+                  {isMobile ? "Toque para abrir a câmera" : "PDF, JPG ou PNG · arraste ou clique para selecionar"}
+                </span>
+              </div>
             </div>
-          </label>
+
+            {/* Link discreto para selecionar arquivo / PDF em smartphones (US-04, RF-39) */}
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  marginTop: "10px",
+                  background: "none",
+                  border: "none",
+                  padding: "6px 12px",
+                  fontSize: "13px",
+                  color: "var(--slate, #64748b)",
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                  textUnderlineOffset: "3px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px"
+                }}
+              >
+                ou selecionar arquivo / PDF
+              </button>
+            )}
+          </div>
         ) : files.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
             <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '16px', padding: '16px 0' }}>
@@ -297,17 +381,14 @@ export default function CapturarDespesas() {
                   )}
                   
                   {!isUploading && status !== "success" && (
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}>
+                    <button
+                      type="button"
+                      onClick={handleDropzoneClick}
+                      style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 12px', cursor: 'pointer', fontSize: '13px', fontWeight: 500 }}
+                      title="Adicionar mais arquivos"
+                    >
                       <UploadCloud size={16} /> <span className="hidden sm:inline">Adicionar mais</span>
-                      <input
-                        type="file"
-                        accept=".pdf,.png,.jpg,.jpeg"
-                        capture="environment"
-                        multiple
-                        style={{ display: 'none' }}
-                        onChange={(e) => addFiles(e.target.files)}
-                      />
-                    </label>
+                    </button>
                   )}
                 </div>
               </div>
@@ -350,13 +431,20 @@ export default function CapturarDespesas() {
           <span className="perf__notch perf__notch--right" />
         </div>
         <div className="slip__actions">
-          {status === "success" || status === "error" ? (
+          {status === "error" ? (
             <button type="button" className="btn-primary" onClick={resetar}>
-              {status === "success" ? "Capturar nova despesa" : "Tentar novamente"}
+              Tentar novamente
             </button>
           ) : (
-            <button type="button" className="btn-primary" onClick={enviarPasta} disabled={files.length === 0 || isUploading}>
-              {isUploading ? "Enviando..." : `Enviar Despesa (${files.length} arquivo${files.length !== 1 ? 's' : ''})`}
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={enviarPasta}
+              disabled={files.length === 0 || isUploading || status === "success"}
+            >
+              {isUploading
+                ? "Enviando..."
+                : `Enviar Despesa (${files.length} arquivo${files.length !== 1 ? 's' : ''})`}
             </button>
           )}
         </div>
