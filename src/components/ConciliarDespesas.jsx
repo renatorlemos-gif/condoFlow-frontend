@@ -18,9 +18,6 @@ function CheckCircle2({ size = 18, strokeWidth = 2 }) {
 function AlertTriangle({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="m10.29 3.86-8.18 14.18A2 2 0 0 0 4 21h16a2 2 0 0 0 1.89-2.96L13.71 3.86a2 2 0 0 0-3.42 0Z" /><path d="M12 9v4M12 17h.01" /></svg>;
 }
-function RefreshCw({ size = 18, strokeWidth = 2 }) {
-  return <svg {...iconBase(size, strokeWidth)}><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" /><path d="M3 21v-5h5" /></svg>;
-}
 function Unlink({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="m18.84 12.25 1.72-1.71a4.5 4.5 0 0 0-6.37-6.37l-1.71 1.72" /><path d="m5.17 11.75-1.72 1.71a4.5 4.5 0 0 0 6.37 6.37l1.71-1.72" /><path d="M8 8l8 8" /></svg>;
 }
@@ -68,46 +65,6 @@ function mesesDisponiveis() {
     meses.push({ val, label });
   }
   return meses;
-}
-
-function MultiSelectDropdown({ options, selecionados, onChange }) {
-  const [aberto, setAberto] = useState(false);
-  return (
-    <div style={{ position: "relative" }} onMouseLeave={() => setAberto(false)}>
-      <div 
-        className="input"
-        style={{ width: 180, display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}
-        onClick={() => setAberto(!aberto)}
-      >
-        <span style={{ fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: selecionados.length === 0 ? "var(--slate)" : "var(--ink)" }}>
-          {selecionados.length === 0 ? "Nenhuma" : selecionados.length === options.length ? "Todas categorias" : `${selecionados.length} categorias`}
-        </span>
-        <span style={{ fontSize: 10, marginLeft: 8 }}>▼</span>
-      </div>
-      {aberto && (
-        <div style={{
-          position: "absolute", top: "100%", left: 0, marginTop: 4, zIndex: 50,
-          background: "var(--paper-card)", border: "1px solid var(--line)", borderRadius: 6,
-          boxShadow: "0 10px 30px rgba(0,0,0,0.1)", width: 220, display: "flex", flexDirection: "column",
-          maxHeight: 300, overflowY: "auto"
-        }}>
-          {options.map(g => (
-            <label key={g} style={{ padding: "8px 14px", display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", borderBottom: "1px solid var(--line)", color: "var(--ink)", margin: 0 }}>
-              <input 
-                type="checkbox"
-                checked={selecionados.includes(g)}
-                onChange={e => {
-                  if (e.target.checked) onChange([...selecionados, g]);
-                  else onChange(selecionados.filter(x => x !== g));
-                }}
-              />
-              {g}
-            </label>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -520,34 +477,6 @@ export default function ConciliarDespesas() {
 
   const condominioAtivo = selectedCondoId;
 
-  const [excludedCategorias, setExcludedCategorias] = useState(() => {
-    try {
-      const saved = sessionStorage.getItem('conciliacao_excluded_cat');
-      return saved ? JSON.parse(saved) : [];
-    } catch { return []; }
-  });
-
-  useEffect(() => {
-    sessionStorage.setItem('conciliacao_excluded_cat', JSON.stringify(excludedCategorias));
-  }, [excludedCategorias]);
-
-  const categoriasDinamicas = useMemo(() => {
-    const cats = new Set();
-    transacoes.forEach(t => {
-      const c = t.categoria;
-      if (c) cats.add(c);
-      else cats.add("Sem Categoria");
-    });
-    return Array.from(cats).sort();
-  }, [transacoes]);
-
-  const selectedCategorias = categoriasDinamicas.filter(c => !excludedCategorias.includes(c));
-
-  const handleCategoriasChange = (newSelected) => {
-    const newExcluded = categoriasDinamicas.filter(c => !newSelected.includes(c));
-    setExcludedCategorias(newExcluded);
-  };
-
   const carregar = useCallback(() => {
     if (!mesAnoSelecionado) {
       setTransacoes([]);
@@ -557,7 +486,6 @@ export default function ConciliarDespesas() {
     setErro("");
     setSelecionadasTrans(new Set());
     const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, condominio_id: selectedCondoId || "", limit: "200" });
-    // Categorias agora são filtradas localmente
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
       .then(r => r.json())
       .then(setTransacoes)
@@ -606,22 +534,18 @@ export default function ConciliarDespesas() {
   
   const handleVincularLote = async (docsIds, tipo) => {
     await handleConciliar(Array.from(selecionadasTrans), docsIds, tipo);
-  };const transacoesFiltradasPorCategoria = transacoes.filter(t => {
-    const cat = t.categoria || "Sem Categoria";
-    if (categoriasDinamicas.length > 0 && !selectedCategorias.includes(cat)) return false;
-    return true;
-  });
+  };
 
-  // Resumo
-  const total      = transacoesFiltradasPorCategoria.length;
-  const conciliadas = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
-  const sugeridas  = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "sugerida").length;
-  const pendentes  = transacoesFiltradasPorCategoria.filter(t => t.status_conciliacao === "pendente").length;
+  // Resumo direto sobre transações (Outros Gastos)
+  const total       = transacoes.length;
+  const conciliadas = transacoes.filter(t => t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote").length;
+  const sugeridas   = transacoes.filter(t => t.status_conciliacao === "sugerida").length;
+  const pendentes   = transacoes.filter(t => t.status_conciliacao === "pendente").length;
 
   const selecionadasArr = transacoes.filter(t => selecionadasTrans.has(t.id));
   const valorTotalSelecionadas = selecionadasArr.reduce((acc, t) => acc + Number(t.valor || 0), 0);
 
-  const transacoesFiltradas = transacoesFiltradasPorCategoria.filter(t => {
+  const transacoesFiltradas = transacoes.filter(t => {
     if (filtroStatus === "Total") return true;
     if (filtroStatus === "Conciliadas") return t.status_conciliacao === "conciliada" || t.status_conciliacao === "conciliada_em_lote";
     if (filtroStatus === "Sugestões") return t.status_conciliacao === "sugerida";
@@ -699,21 +623,6 @@ export default function ConciliarDespesas() {
                             fontFamily: "IBM Plex Mono, monospace" }}>{item.valor}</p>
               </div>
             ))}
-          </div>
-
-          {/* Filtros */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-            <MultiSelectDropdown 
-              options={categoriasDinamicas} 
-              selecionados={selectedCategorias}
-              onChange={handleCategoriasChange}
-            />
-
-            <button className="icon-btn" onClick={carregar} title="Atualizar">
-              <RefreshCw size={16} />
-            </button>
-
-            <div style={{ flex: 1 }} />
           </div>
 
           {/* Floating Bar para Lote */}
