@@ -712,43 +712,27 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   };
 
   const handleConsultarOriginal = async () => {
-    setScanning(true);
-    
-    const fallbackSefaz = async () => {
-      const temChave = doc.chave_acesso && (doc.chave_acesso.length === 44 || doc.chave_acesso.length === 50);
-      if (temChave) {
-        try {
-          await navigator.clipboard.writeText(doc.chave_acesso);
-          setShowToast("QR Code ilegível. Chave copiada!");
-          setTimeout(() => setShowToast(""), 3000);
-        } catch (err) {}
-        window.open("https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx", "_blank", "noopener,noreferrer");
-      } else {
-        setShowToast("Despesa sem QR Code ou Chave de Acesso válidos.");
-        setTimeout(() => setShowToast(""), 3000);
-      }
-    };
+    const rawChave = form.chave_acesso || doc?.chave_acesso || "";
+    const chave = rawChave.replace(/\D/g, "");
 
-    try {
-      const resp = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/scan-qr`, {
-        method: "POST"
-      });
-      if (!resp.ok) {
-        await fallbackSefaz();
-        return;
+    if (chave) {
+      try {
+        await navigator.clipboard.writeText(chave);
+        setShowToast("Chave copiada! Cole no portal da Fazenda.");
+        setTimeout(() => setShowToast(""), 3000);
+      } catch (err) {
+        console.error("Erro ao copiar chave de acesso:", err);
       }
-      const data = await resp.json();
-      
-      if (data.sucesso && data.url) {
-        window.open(data.url, "_blank", "noopener,noreferrer");
-      } else {
-        await fallbackSefaz();
-      }
-    } catch (e) {
-      await fallbackSefaz();
-    } finally {
-      setScanning(false);
+    } else {
+      setShowToast("Despesa sem chave de acesso informada.");
+      setTimeout(() => setShowToast(""), 3000);
     }
+
+    window.open(
+      "https://consultadfe.fazenda.rj.gov.br/consultaDFe/paginas/consultaChaveAcesso.faces",
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
   if (loading) return (
