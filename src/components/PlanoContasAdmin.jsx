@@ -4,16 +4,19 @@ import { useCondo } from "../context/CondoContext";
 function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
   const [codigo_contabil, setCodigoContabil] = useState("");
   const [descricao, setDescricao] = useState("");
+  const [descricao_padrao, setDescricaoPadrao] = useState("");
   const [contexto, setContexto] = useState("");
 
   useEffect(() => {
     if (conta) {
       setCodigoContabil(conta.codigo_contabil || "");
       setDescricao(conta.descricao || "");
+      setDescricaoPadrao(conta.descricao_padrao || "");
       setContexto(conta.contexto || "");
     } else {
       setCodigoContabil("");
       setDescricao("");
+      setDescricaoPadrao("");
       setContexto("");
     }
   }, [conta]);
@@ -26,7 +29,7 @@ function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
       background: "rgba(16,27,48,0.45)", zIndex: 100,
       display: "flex", alignItems: "center", justifyContent: "center"
     }}>
-      <div className="slip" style={{ width: "400px", maxWidth: "90%" }}>
+      <div className="slip" style={{ width: "420px", maxWidth: "90%" }}>
         <h3 className="section-title">{isEdit ? "Editar Contexto da Conta" : "Nova Conta Contábil"}</h3>
         
         {erro && (
@@ -63,6 +66,20 @@ function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
           />
         </div>
 
+        <div className="field" style={{ marginBottom: "12px" }}>
+          <label className="field__label">Descrição Padrão da Despesa</label>
+          <input 
+            type="text" 
+            className="input" 
+            value={descricao_padrao} 
+            onChange={(e) => setDescricaoPadrao(e.target.value)}
+            placeholder="Ex: Salário <fornecedor> ou Águas de Niterói NF <numero_doc>"
+          />
+          <span style={{ fontSize: "11px", color: "var(--slate)", marginTop: "4px", display: "block" }}>
+            Tags disponíveis: <code>&lt;fornecedor&gt;</code>, <code>&lt;numero_doc&gt;</code>
+          </span>
+        </div>
+
         <div className="field" style={{ marginBottom: "16px" }}>
           <label className="field__label">Contexto Semântico RAG</label>
           <textarea 
@@ -80,7 +97,7 @@ function ModalConta({ open, onClose, onSave, loading, conta, erro, isEdit }) {
           </button>
           <button 
             className="btn-primary" 
-            onClick={() => onSave({ codigo_contabil, descricao, contexto })} 
+            onClick={() => onSave({ codigo_contabil, descricao, descricao_padrao, contexto })} 
             disabled={loading || !codigo_contabil || !descricao || !contexto}
           >
             {loading ? "Vetorizando Regras de IA..." : "Salvar"}
@@ -205,13 +222,17 @@ export default function PlanoContasAdmin() {
         administradora_id: currentAdm.id,
         codigo_contabil: dados.codigo_contabil,
         descricao: dados.descricao,
-        contexto: dados.contexto
+        contexto: dados.contexto,
+        descricao_padrao: dados.descricao_padrao || null
       };
 
       if (isEditMode) {
         url = `${API()}/api/v1/plano-contas/${contaSelecionada.id}/contexto`;
         method = "PATCH";
-        body = { contexto: dados.contexto };
+        body = { 
+          contexto: dados.contexto,
+          descricao_padrao: dados.descricao_padrao || null
+        };
       }
 
       const res = await fetch(url, {
@@ -333,10 +354,11 @@ export default function PlanoContasAdmin() {
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1.5px solid var(--line)" }}>
-                <th style={{ padding: "12px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Código</th>
-                <th style={{ padding: "12px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Descrição</th>
-                <th style={{ padding: "12px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Contexto Semântico RAG</th>
-                <th style={{ padding: "12px 16px", fontWeight: "600", color: "var(--ink-soft)", textAlign: "center" }}>Ações</th>
+                <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Código</th>
+                <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Descrição</th>
+                <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Descrição Padrão</th>
+                <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Contexto Semântico RAG</th>
+                <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)", textAlign: "center" }}>Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -345,13 +367,31 @@ export default function PlanoContasAdmin() {
                   borderBottom: "1px solid var(--line)", 
                   background: index % 2 === 0 ? "var(--paper-card)" : "#fbfcfc" 
                 }}>
-                  <td style={{ padding: "12px 16px", fontWeight: "500", fontFamily: "'IBM Plex Mono', monospace" }}>
+                  <td style={{ padding: "18px 16px", lineHeight: 1.5, fontWeight: "500", fontFamily: "'IBM Plex Mono', monospace" }}>
                     {conta.codigo_contabil}
                   </td>
-                  <td style={{ padding: "12px 16px", fontWeight: "500", color: "var(--ink)" }}>
+                  <td style={{ padding: "18px 16px", lineHeight: 1.5, fontWeight: "500", color: "var(--ink)" }}>
                     {conta.descricao}
                   </td>
-                  <td style={{ padding: "12px 16px", maxWidth: "300px" }}>
+                  <td style={{ padding: "18px 16px", lineHeight: 1.5, maxWidth: "260px" }}>
+                    {conta.descricao_padrao ? (
+                      <span style={{ 
+                        fontFamily: "'IBM Plex Mono', monospace", 
+                        fontSize: "12px", 
+                        background: "var(--paper)", 
+                        border: "1px solid var(--line)",
+                        padding: "3px 8px", 
+                        borderRadius: "4px",
+                        display: "inline-block",
+                        wordBreak: "break-word"
+                      }}>
+                        {conta.descricao_padrao}
+                      </span>
+                    ) : (
+                      <span style={{ color: "var(--slate)", opacity: 0.6 }}>—</span>
+                    )}
+                  </td>
+                  <td style={{ padding: "18px 16px", lineHeight: 1.5, maxWidth: "280px" }}>
                     <div 
                       title={conta.contexto} 
                       style={{ 
@@ -360,7 +400,7 @@ export default function PlanoContasAdmin() {
                         WebkitBoxOrient: "vertical", 
                         overflow: "hidden",
                         color: "var(--ink-soft)",
-                        lineHeight: 1.4
+                        lineHeight: 1.5
                       }}
                     >
                       {conta.contexto || "Sem contexto"}
@@ -371,7 +411,7 @@ export default function PlanoContasAdmin() {
                       </div>
                     )}
                   </td>
-                  <td style={{ padding: "12px 16px", textAlign: "center" }}>
+                  <td style={{ padding: "18px 16px", lineHeight: 1.5, textAlign: "center" }}>
                     <button 
                       onClick={() => handleOpenEditar(conta)}
                       style={{ background: "transparent", border: "none", cursor: "pointer", fontSize: "16px", marginRight: "8px" }}

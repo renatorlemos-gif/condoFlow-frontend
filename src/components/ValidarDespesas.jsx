@@ -69,6 +69,17 @@ function formatBRL(v) {
   return n.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function interpolarDescricao(template, fornecedor, numeroDoc) {
+  if (!template) return "";
+  let res = template;
+  const fVal = (fornecedor || "").trim();
+  const dVal = (numeroDoc || "").trim();
+  res = res.replace(/<fornecedor>/gi, fVal);
+  res = res.replace(/<numero_doc>/gi, dVal);
+  res = res.replace(/\s+/g, " ").trim();
+  return res;
+}
+
 function statusBadge(status) {
   const map = {
     pendente:   { label: "Pendente",   bg: "#f3f4f6", color: "#4b5563", spinner: true },
@@ -368,6 +379,72 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   const [showToast, setShowToast] = useState("");
   const [scanning, setScanning] = useState(false);
 
+  const debounceTimerRef = useRef(null);
+  const isInitialMount = useRef(true);
+  const prevInputsRef = useRef({ fornecedor: "", numero_doc: "" });
+
+  const handleContaChange = (novaContaId) => {
+    const selectedConta = planoContas.find(c => c.id === novaContaId);
+    setForm(prev => {
+      let novaDesc = prev.descricao;
+      if (selectedConta?.descricao_padrao) {
+        novaDesc = interpolarDescricao(selectedConta.descricao_padrao, prev.fornecedor, prev.numero_doc);
+      } else {
+        novaDesc = doc?.descricao_original || doc?.descricao || "";
+      }
+      return {
+        ...prev,
+        conta_codigo: novaContaId,
+        descricao: novaDesc
+      };
+    });
+  };
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      if (form.fornecedor !== undefined || form.numero_doc !== undefined) {
+        isInitialMount.current = false;
+        prevInputsRef.current = { fornecedor: form.fornecedor, numero_doc: form.numero_doc };
+      }
+      return;
+    }
+
+    const fornecedorMudou = prevInputsRef.current.fornecedor !== form.fornecedor;
+    const docMudou = prevInputsRef.current.numero_doc !== form.numero_doc;
+    prevInputsRef.current = { fornecedor: form.fornecedor, numero_doc: form.numero_doc };
+
+    if (!fornecedorMudou && !docMudou) {
+      return;
+    }
+
+    const selectedConta = planoContas.find(c => c.id === form.conta_codigo);
+    if (!selectedConta || !selectedConta.descricao_padrao) {
+      return;
+    }
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      const novaDesc = interpolarDescricao(
+        selectedConta.descricao_padrao,
+        form.fornecedor,
+        form.numero_doc
+      );
+      setForm(prev => {
+        if (prev.descricao === novaDesc) return prev;
+        return { ...prev, descricao: novaDesc };
+      });
+    }, 1500);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [form.fornecedor, form.numero_doc, form.conta_codigo, planoContas]);
+
   useEffect(() => {
     let ativo = true;
     const fetchDoc = async () => {
@@ -444,7 +521,14 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
                   }
                   
                   if (selectedId) {
-                    setForm(prev => ({ ...prev, conta_codigo: selectedId }));
+                    setForm(prev => {
+                      const selConta = contas.find(c => c.id === selectedId);
+                      let novaDesc = prev.descricao;
+                      if (selConta?.descricao_padrao && (!prev.descricao || prev.descricao === (d.descricao_original || d.descricao))) {
+                        novaDesc = interpolarDescricao(selConta.descricao_padrao, prev.fornecedor, prev.numero_doc);
+                      }
+                      return { ...prev, conta_codigo: selectedId, descricao: novaDesc };
+                    });
                   }
                 }
               })
@@ -844,15 +928,26 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             <textarea
               className={`input textarea ${!form.descricao ? "input--missing" : ""}`.trim()}
               rows={2}
-              maxLength={80}
               placeholder="Não identificado"
               style={{ textAlign: "center" }}
               value={form.descricao ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
             />
-            <div style={{ textAlign: "right", fontSize: 12, color: "var(--slate)", marginTop: 4 }}>
-              {(form.descricao ?? "").length}/80
-            </div>
+            {(() => {
+              const descLen = (form.descricao ?? "").length;
+              const isOverLimit = descLen > 80;
+              return (
+                <div style={{
+                  textAlign: "right",
+                  fontSize: 12,
+                  marginTop: 4,
+                  color: isOverLimit ? "#dc2626" : "var(--slate)",
+                  fontWeight: isOverLimit ? 600 : 400
+                }}>
+                  {descLen}/80
+                </div>
+              );
+            })()}
           </div>
 
           <div className="field" style={{ marginBottom: 16 }}>
@@ -861,7 +956,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
               className="input left-align-select"
               style={{ width: "100%", maxWidth: "100%", textOverflow: "ellipsis" }}
               value={form.conta_codigo ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, conta_codigo: e.target.value }))}
+              onChange={(e) => handleContaChange(e.target.value)}
             >
               <option value="">Selecione uma conta...</option>
               {planoContas.length > 0 && planoContas.some(c => c.similarity !== null && c.similarity !== undefined) ? (
