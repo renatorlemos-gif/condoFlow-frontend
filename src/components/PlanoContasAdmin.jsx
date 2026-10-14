@@ -223,7 +223,7 @@ export default function PlanoContasAdmin() {
         codigo_contabil: dados.codigo_contabil,
         descricao: dados.descricao,
         contexto: dados.contexto,
-        descricao_padrao: dados.descricao_padrao || null
+        descricao_padrao: dados.descricao_padrao?.trim() || null
       };
 
       if (isEditMode) {
@@ -231,7 +231,7 @@ export default function PlanoContasAdmin() {
         method = "PATCH";
         body = { 
           contexto: dados.contexto,
-          descricao_padrao: dados.descricao_padrao || null
+          descricao_padrao: dados.descricao_padrao?.trim() || null
         };
       }
 
@@ -348,10 +348,10 @@ export default function PlanoContasAdmin() {
         </div>
       </div>
 
-      {/* Tabela Livro-Razão */}
-      <div className="slip" style={{ padding: "0", overflow: "hidden" }}>
+      {/* Tabela Livro-Razão com scroll horizontal fluido mobile (US-03) */}
+      <div className="slip" style={{ padding: "0", overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
         {contasFiltradas.length > 0 ? (
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
+          <table style={{ width: "100%", minWidth: "720px", borderCollapse: "collapse", textAlign: "left", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "var(--paper)", borderBottom: "1.5px solid var(--line)" }}>
                 <th style={{ padding: "14px 16px", fontWeight: "600", color: "var(--ink-soft)" }}>Código</th>

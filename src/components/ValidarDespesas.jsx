@@ -1340,10 +1340,10 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
         </div>
       )}
 
-      {/* Tabela */}
+      {/* Tabela com scroll horizontal fluido mobile (US-03) */}
       {!loading && docsFiltrados.length > 0 && (
-        <div className="slip" style={{ padding: 0, overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div className="slip" style={{ padding: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
+          <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
                 {[
