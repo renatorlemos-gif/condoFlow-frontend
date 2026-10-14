@@ -1142,11 +1142,61 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
   }, [carregar]);
 
 
+  const handleAtualizarManual = useCallback(() => {
+    if (isFetchingRef.current) return;
+    setLoading(true);
+    carregar();
+  }, [carregar]);
+
+  // Carga inicial
   useEffect(() => { 
     carregar(); 
-    const interval = setInterval(carregar, 2000);
-    return () => clearInterval(interval);
   }, [carregar]);
+
+  // Smart Polling Condicional e Page Visibility API (US-03, US-04)
+  useEffect(() => {
+    let intervalId = null;
+
+    const verificarEAgendar = () => {
+      if (intervalId) clearInterval(intervalId);
+
+      const temProcessamentoPendente = docs.some(
+        (d) => d.status === "pendente" || d.status === "extraindo"
+      );
+
+      // Se não há pendentes ou a aba está oculta, não agenda
+      if (!temProcessamentoPendente || document.hidden) {
+        return;
+      }
+
+      // Intervalo relaxado de 8 segundos
+      intervalId = setInterval(() => {
+        if (!document.hidden) {
+          carregar();
+        }
+      }, 8000);
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        const temProcessamentoPendente = docs.some(
+          (d) => d.status === "pendente" || d.status === "extraindo"
+        );
+        if (temProcessamentoPendente) {
+          carregar(); // Recarga imediata ao reativar foco
+        }
+      }
+      verificarEAgendar();
+    };
+
+    verificarEAgendar();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [carregar, docs]);
 
   const total = docs.length;
   const emRevisaoCount = docs.filter(d => revisaoIds.includes(d.id)).length;
@@ -1213,7 +1263,40 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
         </p>
       </div>
 
-      {/* Filtros + reload */}
+      {/* Barra de Ações Superior / Atualizar Lista (US-04) */}
+      <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", marginBottom: 12, width: "100%" }}>
+        <button
+          type="button"
+          onClick={handleAtualizarManual}
+          disabled={loading}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "var(--paper-card, #ffffff)",
+            border: "1px solid var(--line, #cbd5e1)",
+            borderRadius: 8,
+            padding: "8px 14px",
+            fontSize: 13,
+            fontWeight: 500,
+            color: "var(--ink, #1e293b)",
+            cursor: loading ? "not-allowed" : "pointer",
+            opacity: loading ? 0.7 : 1,
+            boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+            transition: "all 0.2s ease"
+          }}
+          title="Atualizar lista de despesas"
+        >
+          {loading ? (
+            <Loader2 size={15} className="spin" />
+          ) : (
+            <RefreshCw size={15} />
+          )}
+          <span>Atualizar Lista</span>
+        </button>
+      </div>
+
+      {/* Filtros */}
       <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "nowrap", alignItems: "center", width: "100%", overflowX: "auto" }}>
         {[
           { label: "Todos", value: "todos", valor: total, bg: "var(--paper-card)", cor: "var(--ink)" },

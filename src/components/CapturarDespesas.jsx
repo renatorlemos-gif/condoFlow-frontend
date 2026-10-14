@@ -88,6 +88,62 @@ function FileText({ size = 18, strokeWidth = 2, className }) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Compressão Client-side com HTML5 Canvas (US-01, US-02)            */
+/* ------------------------------------------------------------------ */
+export async function comprimirImagem(file, maxDimension = 1920, quality = 0.82) {
+  // Se for PDF ou outro tipo não-imagem, bypass imediato
+  if (file.type === "application/pdf") return file;
+  if (!file.type.startsWith("image/")) return file;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+
+      // Salvaguarda: Não faz upscale se a imagem for menor ou igual ao limite
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width);
+          width = maxDimension;
+        } else {
+          width = Math.round((width * maxDimension) / height);
+          height = maxDimension;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve(file); // Fallback seguro
+            return;
+          }
+          const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, ".jpg"), {
+            type: "image/jpeg",
+            lastModified: Date.now(),
+          });
+          resolve(compressedFile);
+        },
+        "image/jpeg",
+        quality
+      );
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(file); // Fallback em caso de falha de leitura
+    };
+    img.src = objectUrl;
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Componente principal                                                */
 /* ------------------------------------------------------------------ */
 
@@ -119,11 +175,15 @@ export default function CapturarDespesas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [files]);
 
+  const previewsRef = useRef(previews);
+  useEffect(() => {
+    previewsRef.current = previews;
+  }, [previews]);
+
   useEffect(() => {
     return () => {
-      Object.values(previews).forEach((url) => URL.revokeObjectURL(url));
+      Object.values(previewsRef.current).forEach((url) => URL.revokeObjectURL(url));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const resetar = useCallback(() => {
@@ -151,12 +211,13 @@ export default function CapturarDespesas() {
     };
   }, [status, resetar]);
 
-  const addFiles = useCallback((newFilesList) => {
+  const addFiles = useCallback(async (newFilesList) => {
     if (!newFilesList || newFilesList.length === 0) return;
     setStatus("idle");
     setErrorMsg("");
     const arr = Array.from(newFilesList);
-    setFiles((prev) => [...prev, ...arr]);
+    const compressedArr = await Promise.all(arr.map((f) => comprimirImagem(f)));
+    setFiles((prev) => [...prev, ...compressedArr]);
   }, []);
 
   const handleDropzoneClick = useCallback(() => {
