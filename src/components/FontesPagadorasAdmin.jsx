@@ -30,7 +30,7 @@ export default function FontesPagadorasAdmin() {
   useEffect(() => {
     fetch(`${API_URL}/api/v1/contexto/administradoras`)
       .then(res => res.json())
-      .then(data => setAdministradoras(data || []))
+      .then(data => setAdministradoras((data || []).sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))))
       .catch(err => console.error("Erro ao carregar administradoras", err));
   }, []);
 
@@ -44,7 +44,7 @@ export default function FontesPagadorasAdmin() {
     if (localAdmId) {
       fetch(`${API_URL}/api/v1/contexto/condominios?administradora_id=${localAdmId}`)
         .then(res => res.json())
-        .then(data => setCondominios(data || []))
+        .then(data => setCondominios((data || []).sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))))
         .catch(err => console.error(err));
 
       fetch(`${API_URL}/api/v1/plano-contas/?administradora_id=${localAdmId}`)
@@ -175,9 +175,11 @@ export default function FontesPagadorasAdmin() {
             onChange={e => setLocalAdmId(e.target.value)}
           >
             <option value="">Selecione a Administradora...</option>
-            {administradoras.map(a => (
-              <option key={a.id} value={a.id}>{a.nome}</option>
-            ))}
+            {[...administradoras]
+              .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+              .map(a => (
+                <option key={a.id} value={a.id}>{a.nome}</option>
+              ))}
           </select>
           
           <select 
@@ -187,9 +189,11 @@ export default function FontesPagadorasAdmin() {
             disabled={!localAdmId}
           >
             <option value="">Selecione o Condomínio...</option>
-            {condominios.map(c => (
-              <option key={c.id} value={c.id}>{c.nome}</option>
-            ))}
+            {[...condominios]
+              .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+              .map(c => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
           </select>
         </div>
       </div>

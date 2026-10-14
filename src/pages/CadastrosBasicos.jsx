@@ -24,8 +24,10 @@ export default function CadastrosBasicos() {
       ]);
       const admData = await admRes.json();
       const conData = await conRes.json();
-      setAdministradoras(Array.isArray(admData) ? admData : admData?.data || []);
-      setCondominios(Array.isArray(conData) ? conData : conData?.data || []);
+      const admArr = Array.isArray(admData) ? admData : admData?.data || [];
+      const conArr = Array.isArray(conData) ? conData : conData?.data || [];
+      setAdministradoras([...admArr].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")));
+      setCondominios([...conArr].sort((a, b) => (a.nome || "").localeCompare(b.nome || "")));
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
     }
@@ -142,7 +144,7 @@ export default function CadastrosBasicos() {
             </form>
 
             <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-              {administradoras.filter(a => a.ativo).map(adm => (
+              {administradoras.filter(a => a.ativo).sort((a, b) => (a.nome || "").localeCompare(b.nome || "")).map(adm => (
                 <li key={adm.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--line)" }}>
                   <span style={{ fontWeight: "500", color: "var(--ink)" }}>{adm.nome}</span>
                   <button 
@@ -168,7 +170,7 @@ export default function CadastrosBasicos() {
                 required
               >
                 <option value="">Selecione a Administradora</option>
-                {administradoras.filter(a => a.ativo).map(adm => (
+                {administradoras.filter(a => a.ativo).sort((a, b) => (a.nome || "").localeCompare(b.nome || "")).map(adm => (
                   <option key={adm.id} value={adm.id}>{adm.nome}</option>
                 ))}
               </select>

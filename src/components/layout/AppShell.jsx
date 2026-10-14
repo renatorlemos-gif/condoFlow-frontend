@@ -143,11 +143,13 @@ export default function AppShell({
               onChange={(e) => selectAdm(e.target.value)}
               title="Administradora Selecionada"
             >
-              {administradoras.map((adm) => (
-                <option key={adm.id} value={adm.id}>
-                  🏢 {adm.nome}
-                </option>
-              ))}
+              {[...administradoras]
+                .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+                .map((adm) => (
+                  <option key={adm.id} value={adm.id}>
+                    🏢 {adm.nome}
+                  </option>
+                ))}
             </select>
 
             <span style={{ color: "var(--line)", fontWeight: "bold" }}>/</span>
@@ -158,11 +160,13 @@ export default function AppShell({
               onChange={(e) => selectCondo(e.target.value)}
               title={condominios.find(c => c.id === selectedCondoId)?.nome || "Condomínio Ativo da Carteira"}
             >
-              {condominios.map((c) => (
-                <option key={c.id} value={c.id}>
-                  📍 {c.nome}
-                </option>
-              ))}
+              {[...condominios]
+                .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    📍 {c.nome}
+                  </option>
+                ))}
             </select>
             
             <span style={{ color: "var(--line)", fontWeight: "bold" }}>/</span>

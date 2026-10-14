@@ -32,6 +32,7 @@ export function CondoProvider({ children }) {
         const response = await fetch(`${API_URL}/api/v1/contexto/administradoras`);
         if (response.ok) {
           const data = await response.json();
+          data.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''));
           setAdministradoras(data);
           
           if (data.length > 0) {
