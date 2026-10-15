@@ -77,11 +77,44 @@ export default function FechamentoContabil() {
         setExporting(false);
         return;
       }
+      const disposition = resp.headers.get("Content-Disposition") || "";
+      const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+
+      let fallbackName = "lote_alterdata.txt";
+      if (currentCondo && mesAnoSelecionado) {
+        const slugify = (text) => {
+          if (!text) return "";
+          return text
+            .toString()
+            .toLowerCase()
+            .trim()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "");
+        };
+        const slugAdm = slugify(currentAdm?.nome) || "administradora";
+        const slugCondo = slugify(currentCondo?.nome) || slugify(currentCondo?.id) || "condominio";
+
+        let mesAno = mesAnoSelecionado.trim().replace("/", "-");
+        const parts = mesAno.split("-");
+        if (parts.length === 2) {
+          if (parts[0].length === 4) {
+            mesAno = `${parts[1].padStart(2, "0")}-${parts[0]}`;
+          } else if (parts[1].length === 4) {
+            mesAno = `${parts[0].padStart(2, "0")}-${parts[1]}`;
+          }
+        }
+        fallbackName = `${slugAdm}_${slugCondo}_${mesAno}.txt`;
+      }
+
+      const filename = match ? decodeURIComponent(match[1]) : fallbackName;
+
       const blob = await resp.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `lote_alterdata_${mesAnoSelecionado}.txt`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
