@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { CondoProvider } from "./context/CondoContext";
 import AppShell from "./components/layout/AppShell";
 import ExtratoUploader from "./components/ExtratoUploader";
@@ -9,7 +9,7 @@ import PlanoContasAdmin from "./components/PlanoContasAdmin";
 import BalanceteUploader from "./components/BalanceteUploader";
 import CadastrosBasicos from "./pages/CadastrosBasicos";
 import FechamentoContabil from "./components/FechamentoContabil";
-import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen, Download, Wallet } from "./components/layout/icons";
+import { FileSpreadsheet, ImageIcon, ClipboardCheck, GitMerge, BookOpen, Download } from "./components/layout/icons";
 
 const PAGES = [
   { id: "cadastros-basicos",    label: "Cadastros Básicos",    icon: BookOpen,        component: CadastrosBasicos   },
@@ -29,9 +29,8 @@ export default function App() {
   return (
     <CondoProvider>
       <AppShell pages={PAGES} currentPageId={currentPageId} onNavigate={setCurrentPageId}>
-        <CurrentPage />
+        <CurrentPage onNavigate={setCurrentPageId} />
       </AppShell>
     </CondoProvider>
   );
 }
-

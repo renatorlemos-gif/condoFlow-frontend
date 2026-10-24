@@ -1,13 +1,21 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback } from "react";
 import { UploadCloud, FileCheck2, Loader2, AlertTriangle, CheckCircle2, X } from "./layout/icons";
 import { bytesToSize } from "../utils/format";
 import { useCondo } from "../context/CondoContext";
 
-export default function ExtratoUploader() {
-  const { selectedAdmId, selectedCondoId, currentAdm, currentCondo, recarregarCompetencias } = useCondo();
+export default function ExtratoUploader({ onNavigate }) {
+  const {
+    selectedAdmId,
+    selectedCondoId,
+    currentAdm,
+    currentCondo,
+    selectedFonteId,
+    currentFonte,
+    fontesPagadoras,
+    recarregarCompetencias,
+  } = useCondo();
+
   const [file, setFile] = useState(null);
-  const [contasBancarias, setContasBancarias] = useState([]);
-  const [contaSelecionada, setContaSelecionada] = useState("");
   const [status, setStatus] = useState("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [dragActive, setDragActive] = useState(false);
@@ -15,33 +23,18 @@ export default function ExtratoUploader() {
 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
-  useEffect(() => {
-    if (currentCondo?.id) {
-      fetch(`${API_URL}/api/v1/fontes-pagadoras/?condominio_id=${currentCondo.id}`)
-        .then(res => res.json())
-        .then(data => {
-          const bancarias = Array.isArray(data) ? data.filter(f => f.exige_conciliacao_extrato === true) : [];
-          setContasBancarias(bancarias);
-          if (bancarias.length > 0) {
-            setContaSelecionada(bancarias[0].id);
-          } else {
-            setContaSelecionada("");
-          }
-        })
-        .catch(err => console.error(err));
-    }
-  }, [currentCondo?.id, API_URL]);
+  const hasFonte = Boolean(selectedFonteId && currentFonte);
 
-  const resetFeedback = () => {
+  const resetFeedback = useCallback(() => {
     setStatus("idle");
     setErrorMsg("");
-  };
+  }, []);
 
-  const pickFile = (f) => {
+  const pickFile = useCallback((f) => {
     if (!f) return;
     setFile(f);
     resetFeedback();
-  };
+  }, [resetFeedback]);
 
   const handleDrag = useCallback((e, active) => {
     e.preventDefault();
@@ -55,7 +48,7 @@ export default function ExtratoUploader() {
     setDragActive(false);
     const f = e.dataTransfer.files?.[0];
     if (f) pickFile(f);
-  }, []);
+  }, [pickFile]);
 
   const handleUpload = async () => {
     if (!file) {
@@ -63,25 +56,22 @@ export default function ExtratoUploader() {
       setErrorMsg("Selecione um arquivo de extrato antes de converter.");
       return;
     }
-    if (!contaSelecionada) {
+    if (!selectedFonteId || !currentFonte) {
       setStatus("error");
-      setErrorMsg("Nenhuma conta bancária selecionada.");
+      setErrorMsg("Nenhuma conta bancária ativa selecionada.");
       return;
     }
-
-    const contaInfo = contasBancarias.find(c => c.id === contaSelecionada);
-    if (!contaInfo) return;
 
     setStatus("loading");
     setErrorMsg("");
 
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("banco", contaInfo.banco);
+    formData.append("banco", currentFonte.banco);
     formData.append("administradora_id", selectedAdmId);
     formData.append("condominio_id", selectedCondoId);
-    formData.append("condo_nome", currentCondo.nome);
-    formData.append("fonte_pagadora_id", contaSelecionada);
+    formData.append("condo_nome", currentCondo?.nome || "");
+    formData.append("fonte_pagadora_id", selectedFonteId);
 
     try {
       const response = await fetch(`${API_URL}/api/processar-extrato`, {
@@ -106,7 +96,7 @@ export default function ExtratoUploader() {
       window.URL.revokeObjectURL(url);
 
       setStatus("success");
-      
+
       if (recarregarCompetencias && selectedCondoId) {
         recarregarCompetencias(selectedCondoId);
       }
@@ -118,7 +108,10 @@ export default function ExtratoUploader() {
 
   return (
     <div className="page">
-      <div className="page__head" style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+      <div
+        className="page__head"
+        style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}
+      >
         <span className="page__eyebrow">Conciliação bancária</span>
         <h1 className="page__title">Processar Extratos</h1>
         <p className="page__subtitle" style={{ margin: "0 auto" }}>
@@ -128,58 +121,63 @@ export default function ExtratoUploader() {
       </div>
 
       <div className="slip">
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "4px",
-          padding: "10px 14px",
-          background: "var(--paper)",
-          border: "1px solid var(--line)",
-          borderRadius: "8px",
-          marginBottom: "16px",
-          fontSize: "12.5px"
-        }}>
-          <span><strong>Carteira Ativa:</strong> {currentAdm?.nome} &rarr; <strong>{currentCondo?.nome}</strong></span>
-        </div>
-
-        <div className="slip__row">
-          <div className="field">
-            <span className="field__label">Fonte Pagadora</span>
-            <select
-              className="input"
-              value={contaSelecionada}
-              onChange={(e) => {
-                setContaSelecionada(e.target.value);
-                resetFeedback();
-              }}
-              style={{ padding: "8px", borderRadius: "8px", border: "1px solid var(--line)", width: "100%", background: "#fff" }}
-              disabled={contasBancarias.length === 0}
-            >
-              {contasBancarias.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.banco} ({c.agencia} | {c.conta})
-                </option>
-              ))}
-              {contasBancarias.length === 0 && <option value="">Nenhuma fonte encontrada</option>}
-            </select>
-            {contasBancarias.length === 0 && (
-              <p style={{ fontSize: "11px", color: "var(--red)", marginTop: "4px" }}>
-                Nenhuma fonte pagadora bancária cadastrada. Acesse Administração &gt; Cadastros Básicos para cadastrar.
-              </p>
-            )}
+        {/* Banner de Contexto da Carteira e Fonte Bancária ou Alerta Defensivo */}
+        {!hasFonte || fontesPagadoras.length === 0 ? (
+          <div className="slip__warning-banner">
+            <AlertTriangle size={20} style={{ color: "#d97706", flexShrink: 0, marginTop: "2px" }} />
+            <div style={{ flex: 1 }}>
+              <div className="slip__warning-title">Nenhuma Fonte Bancária Vinculada</div>
+              <div className="slip__warning-desc">
+                ⚠️ Nenhuma fonte pagadora bancária cadastrada para este condomínio. Cadastre ou habilite uma conta em Administração &gt; Cadastros Básicos para processar extratos.
+              </div>
+              {onNavigate && (
+                <button
+                  type="button"
+                  className="btn-amber-link"
+                  onClick={() => onNavigate("cadastros-basicos")}
+                >
+                  Configurar Contas em Cadastros Básicos &rarr;
+                </button>
+              )}
+            </div>
           </div>
-          
-          
-        </div>
+        ) : (
+          <div className="slip__inherited-banner">
+            <div className="slip__inherited-info">
+              <span className="slip__inherited-label">
+                Carteira Ativa: {currentAdm?.nome || "Administradora"} &rarr; <strong>{currentCondo?.nome || "Condomínio"}</strong>
+              </span>
+              <span className="slip__inherited-val">
+                <span>🏦</span> {currentFonte.banco} ({currentFonte.agencia} | {currentFonte.conta})
+              </span>
+              <span className="slip__inherited-sub">
+                Fonte pagadora vinculada automaticamente via menu lateral
+              </span>
+            </div>
+            <span className="slip__inherited-badge">
+              {currentFonte.tipo || "Conta Corrente"}
+            </span>
+          </div>
+        )}
 
+        {/* Dropzone de upload */}
         <label
-          className={`dropzone ${dragActive ? "dropzone--active" : ""} ${file ? "dropzone--filled" : ""} ${contasBancarias.length === 0 ? "dropzone--disabled" : ""}`}
-          onDragOver={(e) => { if (contasBancarias.length > 0) handleDrag(e, true); }}
-          onDragEnter={(e) => { if (contasBancarias.length > 0) handleDrag(e, true); }}
-          onDragLeave={(e) => { if (contasBancarias.length > 0) handleDrag(e, false); }}
-          onDrop={(e) => { if (contasBancarias.length > 0) handleDrop(e); }}
-          style={contasBancarias.length === 0 ? { opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" } : {}}
+          className={`dropzone ${dragActive ? "dropzone--active" : ""} ${file ? "dropzone--filled" : ""} ${
+            !hasFonte ? "dropzone--disabled" : ""
+          }`}
+          onDragOver={(e) => {
+            if (hasFonte) handleDrag(e, true);
+          }}
+          onDragEnter={(e) => {
+            if (hasFonte) handleDrag(e, true);
+          }}
+          onDragLeave={(e) => {
+            if (hasFonte) handleDrag(e, false);
+          }}
+          onDrop={(e) => {
+            if (hasFonte) handleDrop(e);
+          }}
+          style={!hasFonte ? { opacity: 0.5, cursor: "not-allowed", pointerEvents: "none" } : {}}
         >
           <input
             ref={inputRef}
@@ -187,7 +185,7 @@ export default function ExtratoUploader() {
             accept=".ofx,.csv,.pdf,.xls,.xlsx,.txt"
             className="dropzone__input"
             onChange={(e) => pickFile(e.target.files?.[0])}
-            disabled={contasBancarias.length === 0}
+            disabled={!hasFonte}
           />
 
           {!file ? (
@@ -195,8 +193,14 @@ export default function ExtratoUploader() {
               <span className="dropzone__icon">
                 <UploadCloud size={22} strokeWidth={1.8} />
               </span>
-              <span className="dropzone__title">Arraste o extrato aqui</span>
-              <span className="dropzone__hint">ou clique para procurar no computador</span>
+              <span className="dropzone__title">
+                {!hasFonte ? "Envio de extrato desabilitado" : "Arraste o extrato aqui"}
+              </span>
+              <span className="dropzone__hint">
+                {!hasFonte
+                  ? "Cadastre uma conta corrente para liberar o upload"
+                  : "ou clique para procurar no computador (OFX, CSV, PDF, XLS, TXT)"}
+              </span>
             </div>
           ) : (
             <div className="dropzone__file">
@@ -248,7 +252,7 @@ export default function ExtratoUploader() {
           <button
             type="button"
             className="btn-primary w-full"
-            disabled={!file || status === "loading" || contasBancarias.length === 0}
+            disabled={!file || status === "loading" || !hasFonte}
             onClick={handleUpload}
           >
             {status === "loading" ? (
@@ -261,6 +265,7 @@ export default function ExtratoUploader() {
           </button>
         </div>
       </div>
+
       <p className="page__footnote">
         Nenhum arquivo é sobrescrito. O extrato original e a planilha gerada
         ficarão salvos no repositório do condomínio.
@@ -268,4 +273,3 @@ export default function ExtratoUploader() {
     </div>
   );
 }
-
