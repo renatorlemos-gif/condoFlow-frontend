@@ -375,7 +375,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   const [planoContas, setPlanoContas] = useState([]);
   const [contasBancarias, setContasBancarias] = useState([]);
   const [sugestao, setSugestao] = useState(null);
-  const [showContaDevedora, setShowContaDevedora] = useState(false);
+  const [fonteCorrenteId, setFonteCorrenteId] = useState(null);
+  const [alertaSemConciliacao, setAlertaSemConciliacao] = useState(false);
   const [showToast, setShowToast] = useState("");
   const [scanning, setScanning] = useState(false);
 
@@ -490,50 +491,61 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
           });
           
           if (ativo) setLoading(false); // Libera a tela imediatamente para leitura
-          
-          Promise.all([
-            fetch(`${API_URL()}/api/v1/fontes-pagadoras?condominio_id=${d.condominio_id}`)
-              .then(res => res.ok ? res.json() : [])
-              .then(cbData => { if (ativo) setContasBancarias(cbData); })
-              .catch(console.error),
-              
-            fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/contas-sugeridas`)
-              .then(res => res.ok ? res.json() : [])
-              .then(contas => {
-                if (ativo) {
-                  setPlanoContas(contas);
-                  
-                  // 1. Usa o UUID que o usuário já salvou no banco (se existir)
-                  let selectedId = d.conta_despesa_id;
-                  
-                  // 2. Se for novo/não salvo, tenta usar a sugestão da IA baseada no código
-                  if (!selectedId) {
-                    const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo;
-                    if (defaultCodigo) {
-                      const match = contas.find(c => c.codigo_contabil === defaultCodigo);
-                      if (match) selectedId = match.id;
-                    }
-                  }
-                  
-                  // 3. Fallback
-                  if (!selectedId && contas.length > 0) {
-                    selectedId = contas[0].id;
-                  }
-                  
-                  if (selectedId) {
-                    setForm(prev => {
-                      const selConta = contas.find(c => c.id === selectedId);
-                      let novaDesc = prev.descricao;
-                      if (selConta?.descricao_padrao && (!prev.descricao || prev.descricao === (d.descricao_original || d.descricao))) {
-                        novaDesc = interpolarDescricao(selConta.descricao_padrao, prev.fornecedor, prev.numero_doc);
-                      }
-                      return { ...prev, conta_codigo: selectedId, descricao: novaDesc };
-                    });
-                  }
+
+          const fontesPromise = fetch(`${API_URL()}/api/v1/fontes-pagadoras?condominio_id=${d.condominio_id}`)
+            .then(res => res.ok ? res.json() : [])
+            .catch(() => []);
+
+          const correntePromise = fetch(`${API_URL()}/api/v1/fontes-pagadoras/corrente?condominio_id=${d.condominio_id}&mes_ano=${mesAnoSelecionado || ""}`)
+            .then(res => res.ok ? res.json() : null)
+            .catch(() => null);
+
+          const contasSugeridasPromise = fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}/contas-sugeridas`)
+            .then(res => res.ok ? res.json() : [])
+            .catch(() => []);
+
+          Promise.all([fontesPromise, correntePromise, contasSugeridasPromise]).then(([fontes, correnteData, contas]) => {
+            if (!ativo) return;
+            setContasBancarias(fontes);
+
+            const fidCorrente = correnteData?.fonte_pagadora_id || (fontes.find(f => f.exige_conciliacao_extrato)?.id) || (fontes[0]?.id) || "";
+            setFonteCorrenteId(fidCorrente);
+
+            setForm(prev => ({
+              ...prev,
+              conta_devedora_id: d.fonte_pagadora_id || fidCorrente || "",
+            }));
+
+            setPlanoContas(contas);
+
+            // 1. Usa o UUID que o usuário já salvou no banco (se existir)
+            let selectedId = d.conta_despesa_id;
+
+            // 2. Se for novo/não salvo, tenta usar a sugestão da IA baseada no código
+            if (!selectedId) {
+              const defaultCodigo = d.sugestao_contabil?.conta_debito_codigo;
+              if (defaultCodigo) {
+                const match = contas.find(c => c.codigo_contabil === defaultCodigo);
+                if (match) selectedId = match.id;
+              }
+            }
+
+            // 3. Fallback
+            if (!selectedId && contas.length > 0) {
+              selectedId = contas[0].id;
+            }
+
+            if (selectedId) {
+              setForm(prev => {
+                const selConta = contas.find(c => c.id === selectedId);
+                let novaDesc = prev.descricao;
+                if (selConta?.descricao_padrao && (!prev.descricao || prev.descricao === (d.descricao_original || d.descricao))) {
+                  novaDesc = interpolarDescricao(selConta.descricao_padrao, prev.fornecedor, prev.numero_doc);
                 }
-              })
-              .catch(console.error)
-          ]);
+                return { ...prev, conta_codigo: selectedId, descricao: novaDesc };
+              });
+            }
+          }).catch(console.error);
         }
       } catch (err) {
         if (ativo) setErro("Não foi possível carregar a despesa.");
@@ -543,7 +555,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     };
     fetchDoc();
     return () => { ativo = false; };
-  }, [docId]);
+  }, [docId, mesAnoSelecionado]);
 
   const salvarDespesaPatch = async (acaoPatch, forcedContaDevedoraId = undefined) => {
     const payload = { acao: acaoPatch, ...form };
@@ -596,6 +608,13 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
       }
 
       if (acao === "confirmar" && mesAnoSelecionado) {
+        // Validação: não permitir confirmação sem fonte pagadora selecionada
+        if (!form.conta_devedora_id || form.conta_devedora_id.trim() === "") {
+          setErro("A fonte pagadora (Conta Crédito) é obrigatória para validação.");
+          setSalvando(false);
+          return;
+        }
+
         if (forcedContaDevedoraId !== undefined) {
           await salvarDespesaPatch("confirmar", forcedContaDevedoraId);
           setShowToast("Despesa validada com sucesso. A conciliação será feita depois.");
@@ -604,7 +623,20 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
           return;
         }
 
-        // 1. Persiste as alterações da tela imediatamente via ação "salvar"
+        const fonteSelecionada = form.conta_devedora_id;
+        const isFonteDivergente = Boolean(fonteCorrenteId && fonteSelecionada && fonteSelecionada !== fonteCorrenteId);
+
+        // CENÁRIO B: FONTE DIVERGENTE DA CORRENTE -> VALIDAÇÃO DIRETA (BYPASS CONCILIAÇÃO)
+        if (isFonteDivergente) {
+          await salvarDespesaPatch("confirmar", fonteSelecionada);
+          setShowToast("Despesa validada com sucesso contra a fonte pagadora selecionada.");
+          setTimeout(() => onSalvo(), 1500);
+          setSalvando(false);
+          return;
+        }
+
+        // CENÁRIO A: MESMA FONTE DO EXTRATO -> BUSCA CONCILIAÇÃO
+        // 1. Salva dados na tela primeiro via ação "salvar"
         await salvarDespesaPatch("salvar");
 
         // 2. Monta parâmetros dinâmicos com os dados da tela para busca de sugestões
@@ -638,21 +670,23 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
           console.error("Erro ao buscar sugestão", e);
         }
 
-        // Se chegou aqui, não há sugestão!
-        if (!showContaDevedora) {
-          setShowContaDevedora(true);
+        // Se não encontrou sugestão:
+        // Primeiro clique: ativa alerta visual e aguarda reconfirmação
+        if (!alertaSemConciliacao) {
+          setAlertaSemConciliacao(true);
           setErro("A automação não encontrou conciliação para este valor. Verifique a Fonte Pagadora (Crédito) abaixo e confirme novamente para gravar.");
           setSalvando(false);
           return;
         }
 
-        await salvarDespesaPatch("confirmar");
+        // Segundo clique com alerta ativo: valida e grava
+        await salvarDespesaPatch("confirmar", fonteSelecionada);
         const [ano, mes] = mesAnoSelecionado.split("-");
         const date = new Date(ano, parseInt(mes) - 1);
         const mesFormat = date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
         const mesCapitalizado = mesFormat.charAt(0).toUpperCase() + mesFormat.slice(1);
         setShowToast(`Despesa validada. Nenhuma transação correspondente encontrada no extrato de ${mesCapitalizado}.`);
-        setTimeout(() => onSalvo(), 3000);
+        setTimeout(() => onSalvo(), 2000);
         setSalvando(false);
         return;
       }
@@ -806,8 +840,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             setSugestao(null);
             const fonteFinal = form.conta_devedora_id || sugestao.fonte_pagadora_id;
             if (!fonteFinal) {
-              setShowContaDevedora(true);
-              setErro("A Fonte Pagadora (Crédito) é obrigatória para validar. Selecione-a abaixo e confirme novamente.");
+              setErro("A fonte pagadora (Conta Crédito) é obrigatória para validação.");
               setSalvando(false);
               return;
             }
@@ -990,24 +1023,37 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             </select>
           </div>
 
-                    {showContaDevedora && (
-            <div className="field" style={{ marginBottom: 16 }}>
-              <span className="field__label">Fonte Pagadora (Crédito)</span>
-              <select
-                className="input left-align-select"
-                style={{ borderColor: "#ef4444", width: "100%", maxWidth: "100%", textOverflow: "ellipsis" }}
-                value={form.conta_devedora_id ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, conta_devedora_id: e.target.value }))}
-              >
-                <option value="">Selecione a conta que originou o pagamento...</option>
-                {contasBancarias.map(conta => (
-                  <option key={conta.id} value={conta.id}>
-                    {conta.nome} {conta.banco ? `- ${conta.banco}` : ''} {conta.conta ? `CC: ${conta.conta}` : ''}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Campo de Fonte Pagadora SEMPRE visível */}
+          <div className="field" style={{ marginBottom: 16 }}>
+            <span className="field__label">Fonte Pagadora (Crédito)</span>
+            <select
+              className="input left-align-select"
+              style={{
+                borderColor: alertaSemConciliacao ? "#ef4444" : "var(--line)",
+                width: "100%",
+                maxWidth: "100%",
+                textOverflow: "ellipsis"
+              }}
+              value={form.conta_devedora_id ?? ""}
+              onChange={(e) => {
+                setForm((f) => ({ ...f, conta_devedora_id: e.target.value }));
+                setAlertaSemConciliacao(false);
+                if (erro) setErro("");
+              }}
+            >
+              <option value="">Selecione a conta que originou o pagamento...</option>
+              {contasBancarias.map(conta => (
+                <option key={conta.id} value={conta.id}>
+                  {conta.nome} {conta.banco ? `- ${conta.banco}` : ''} {conta.conta ? `CC: ${conta.conta}` : ''}
+                </option>
+              ))}
+            </select>
+            {alertaSemConciliacao && (
+              <span style={{ color: "#ef4444", fontSize: "12px", marginTop: "4px", display: "block" }}>
+                Nenhuma transação correspondente encontrada no extrato atual para esta fonte.
+              </span>
+            )}
+          </div>
 
           {erro && (
             <div className="feedback feedback--error" style={{ marginBottom: 12 }}>
