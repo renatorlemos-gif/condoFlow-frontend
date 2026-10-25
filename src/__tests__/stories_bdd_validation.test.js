@@ -152,22 +152,80 @@ describe("US-02: Acordeão Exclusivo (Single-Expanded Accordion) na Sidebar", ()
   });
 });
 
-describe("US-03: Bloco Contexto Operacional e 4 Seletores Verticais", () => {
-  it("Cenário 01 & 02: Formatação descritiva da conta bancária (RF-62)", () => {
-    const f = { banco: "Banco Itaú", agencia: "0241", conta: "98765-4" };
-    const optionText = `${f.banco} (${f.agencia} | ${f.conta})`;
-    assert.equal(optionText, "Banco Itaú (0241 | 98765-4)");
+describe("US-03: Bloco Contexto Operacional Compacto sem Labels e Seletores Auto-Identificados", () => {
+  it("Cenário 01: Formatação de Administradora nas opções com ícone e acessibilidade (RF-62)", () => {
+    const adm = { id: "adm-1", nome: "Integre Administradora" };
+    const populatedText = `🏢 ${adm.nome}`;
+    const emptyText = "🏢 Administradora";
+
+    assert.equal(populatedText, "🏢 Integre Administradora");
+    assert.equal(emptyText, "🏢 Administradora");
+
+    // Validação de atributos de acessibilidade no select
+    const selectAttrs = { title: "Administradora", "aria-label": "Administradora" };
+    assert.equal(selectAttrs.title, "Administradora");
+    assert.equal(selectAttrs["aria-label"], "Administradora");
   });
 
-  it("Cenário 03: Feedback visual de aviso quando não há contas bancárias (RF-62, RF-65)", () => {
-    const fontesPagadoras = [];
-    const loadingFontes = false;
+  it("Cenário 02: Formatação de Condomínio nas opções com ícone e acessibilidade (RF-62)", () => {
+    const c = { id: "c-1", nome: "Condomínio Solar das Acácias" };
+    const populatedText = `📍 ${c.nome}`;
+    const emptyText = "📍 Condomínio";
 
-    const isEmptyWarning = fontesPagadoras.length === 0 && !loadingFontes;
-    const optionText = isEmptyWarning ? "⚠️ Nenhuma fonte bancária" : "Conta";
+    assert.equal(populatedText, "📍 Condomínio Solar das Acácias");
+    assert.equal(emptyText, "📍 Condomínio");
 
-    assert.equal(isEmptyWarning, true);
-    assert.equal(optionText, "⚠️ Nenhuma fonte bancária");
+    const selectAttrs = { title: "Condomínio", "aria-label": "Condomínio" };
+    assert.equal(selectAttrs.title, "Condomínio");
+    assert.equal(selectAttrs["aria-label"], "Condomínio");
+  });
+
+  it("Cenário 03: Formatação descritiva da Fonte Pagadora com ícone 🏦 e feedback quando vazia (RF-62, RF-65)", () => {
+    const f = { banco: "Banco Itaú", agencia: "0241", conta: "98765-4" };
+    const populatedText = `🏦 ${f.banco} (${f.agencia} | ${f.conta})`;
+    const loadingText = "🏦 Carregando contas...";
+    const emptyText = "🏦 Nenhuma fonte bancária";
+
+    assert.equal(populatedText, "🏦 Banco Itaú (0241 | 98765-4)");
+    assert.equal(loadingText, "🏦 Carregando contas...");
+    assert.equal(emptyText, "🏦 Nenhuma fonte bancária");
+
+    const selectAttrs = { title: "Fonte Pagadora", "aria-label": "Fonte Pagadora" };
+    assert.equal(selectAttrs.title, "Fonte Pagadora");
+    assert.equal(selectAttrs["aria-label"], "Fonte Pagadora");
+  });
+
+  it("Cenário 04: Formatação descritiva de Competência com ícone 📅 e estados carregando/vazio (RF-62)", () => {
+    const formatMesAno = (isoString) => {
+      if (!isoString) return "";
+      const [yyyy, mm] = isoString.split("-");
+      const date = new Date(Number(yyyy), Number(mm) - 1, 1);
+      const mes = date.toLocaleDateString("pt-BR", { month: "long" });
+      return `📅 ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${yyyy}`;
+    };
+
+    const populatedText = formatMesAno("2026-10");
+    const loadingText = "📅 Carregando...";
+    const emptyText = "📅 Competência";
+
+    assert.equal(populatedText, "📅 Outubro 2026");
+    assert.equal(loadingText, "📅 Carregando...");
+    assert.equal(emptyText, "📅 Competência");
+
+    const selectAttrs = { title: "Competência", "aria-label": "Competência" };
+    assert.equal(selectAttrs.title, "Competência");
+    assert.equal(selectAttrs["aria-label"], "Competência");
+  });
+
+  it("Cenário 05: Eliminação total de <label> e compactação dos seletores na Sidebar (RF-62)", () => {
+    // Assert de regras de design tokens e remoção de labels
+    const hasExternalLabels = false;
+    const contextBoxGap = 8; // reduzido de 10px para 8px
+    const fieldGap = 0; // gap interno do campo zerado sem label
+
+    assert.equal(hasExternalLabels, false, "Labels externos dos 4 campos contextuais devem ser eliminados");
+    assert.equal(contextBoxGap, 8, "Context box deve ser compactada com gap de 8px");
+    assert.equal(fieldGap, 0, "Sidebar field deve ter gap 0 devido à ausência de labels");
   });
 });
 

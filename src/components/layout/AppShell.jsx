@@ -10,7 +10,7 @@ function formatMesAno(isoString) {
   const [yyyy, mm] = isoString.split("-");
   const date = new Date(Number(yyyy), Number(mm) - 1, 1);
   const mes = date.toLocaleDateString("pt-BR", { month: "long" });
-  return `${mes.charAt(0).toUpperCase() + mes.slice(1)} ${yyyy}`;
+  return `📅 ${mes.charAt(0).toUpperCase() + mes.slice(1)} ${yyyy}`;
 }
 
 export default function AppShell({
@@ -116,56 +116,61 @@ export default function AppShell({
 
                 {/* 1. Administradora */}
                 <div className="sidebar__field">
-                  <label className="sidebar__field-label" htmlFor="sidebar-adm">
-                    🏢 Administradora
-                  </label>
                   <select
                     id="sidebar-adm"
                     className="sidebar__select"
                     value={selectedAdmId || ""}
                     onChange={(e) => selectAdm(e.target.value)}
+                    title="Administradora"
+                    aria-label="Administradora"
                   >
-                    {[...administradoras]
-                      .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
-                      .map((adm) => (
-                        <option key={adm.id} value={adm.id}>
-                          {adm.nome}
-                        </option>
-                      ))}
+                    {administradoras.length === 0 ? (
+                      <option value="">🏢 Administradora</option>
+                    ) : (
+                      <>
+                        {!selectedAdmId && <option value="">🏢 Administradora</option>}
+                        {[...administradoras]
+                          .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+                          .map((adm) => (
+                            <option key={adm.id} value={adm.id}>
+                              🏢 {adm.nome}
+                            </option>
+                          ))}
+                      </>
+                    )}
                   </select>
                 </div>
 
                 {/* 2. Condomínio */}
                 <div className="sidebar__field">
-                  <label className="sidebar__field-label" htmlFor="sidebar-condo">
-                    📍 Condomínio
-                  </label>
                   <select
                     id="sidebar-condo"
                     className="sidebar__select"
                     value={selectedCondoId || ""}
                     onChange={(e) => selectCondo(e.target.value)}
                     disabled={condominios.length === 0}
+                    title="Condomínio"
+                    aria-label="Condomínio"
                   >
                     {condominios.length === 0 ? (
-                      <option value="">Sem condomínios</option>
+                      <option value="">📍 Condomínio</option>
                     ) : (
-                      [...condominios]
-                        .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.nome}
-                          </option>
-                        ))
+                      <>
+                        {!selectedCondoId && <option value="">📍 Condomínio</option>}
+                        {[...condominios]
+                          .sort((a, b) => (a.nome || "").localeCompare(b.nome || ""))
+                          .map((c) => (
+                            <option key={c.id} value={c.id}>
+                              📍 {c.nome}
+                            </option>
+                          ))}
+                      </>
                     )}
                   </select>
                 </div>
 
                 {/* 3. Fonte Pagadora (Novo Seletor Global) */}
                 <div className="sidebar__field">
-                  <label className="sidebar__field-label" htmlFor="sidebar-fonte">
-                    🏦 Fonte Pagadora
-                  </label>
                   <select
                     id="sidebar-fonte"
                     className={`sidebar__select ${
@@ -176,15 +181,17 @@ export default function AppShell({
                     value={selectedFonteId || ""}
                     onChange={(e) => selectFonte(e.target.value)}
                     disabled={loadingFontes || fontesPagadoras.length === 0}
+                    title="Fonte Pagadora"
+                    aria-label="Fonte Pagadora"
                   >
                     {loadingFontes ? (
-                      <option value="">Carregando contas...</option>
+                      <option value="">🏦 Carregando contas...</option>
                     ) : fontesPagadoras.length === 0 ? (
-                      <option value="">⚠️ Nenhuma fonte bancária</option>
+                      <option value="">🏦 Nenhuma fonte bancária</option>
                     ) : (
                       fontesPagadoras.map((f) => (
                         <option key={f.id} value={f.id}>
-                          {f.banco} ({f.agencia} | {f.conta})
+                          🏦 {f.banco} ({f.agencia} | {f.conta})
                         </option>
                       ))
                     )}
@@ -193,20 +200,19 @@ export default function AppShell({
 
                 {/* 4. Competência */}
                 <div className="sidebar__field">
-                  <label className="sidebar__field-label" htmlFor="sidebar-comp">
-                    📅 Competência
-                  </label>
                   <select
                     id="sidebar-comp"
                     className="sidebar__select"
                     value={mesAnoSelecionado || ""}
                     onChange={(e) => selectMesAno(e.target.value)}
                     disabled={loadingCompetencias || competencias.length === 0}
+                    title="Competência"
+                    aria-label="Competência"
                   >
                     {loadingCompetencias ? (
-                      <option value="">Carregando...</option>
+                      <option value="">📅 Carregando...</option>
                     ) : competencias.length === 0 ? (
-                      <option value="">Sem extrato importado</option>
+                      <option value="">📅 Competência</option>
                     ) : (
                       competencias.map((comp) => (
                         <option key={comp} value={comp}>
