@@ -365,7 +365,7 @@ function ModalConciliacaoImediata({ transacao, docId, onConfirm, onValidarDepois
 /*  Tela de detalhe / validação                                         */
 /* ------------------------------------------------------------------ */
 function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao }) {
-  const { mesAnoSelecionado, selectedCondoId } = useCondo();
+  const { mesAnoSelecionado, selectedCondoId, selectedFonteId } = useCondo();
   const [doc, setDoc]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [salvando, setSalvando] = useState(false);
@@ -508,7 +508,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             if (!ativo) return;
             setContasBancarias(fontes);
 
-            const fidCorrente = correnteData?.fonte_pagadora_id || (fontes.find(f => f.exige_conciliacao_extrato)?.id) || (fontes[0]?.id) || "";
+            const fidCorrente = selectedFonteId || correnteData?.fonte_pagadora_id || (fontes.find(f => f.exige_conciliacao_extrato)?.id) || (fontes[0]?.id) || "";
             setFonteCorrenteId(fidCorrente);
 
             setForm(prev => ({
@@ -624,7 +624,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
         }
 
         const fonteSelecionada = form.conta_devedora_id;
-        const isFonteDivergente = Boolean(fonteCorrenteId && fonteSelecionada && fonteSelecionada !== fonteCorrenteId);
+        const contaLateralAtivaId = selectedFonteId || fonteCorrenteId;
+        const isFonteDivergente = Boolean(contaLateralAtivaId && fonteSelecionada && fonteSelecionada !== contaLateralAtivaId);
 
         // CENÁRIO B: FONTE DIVERGENTE DA CORRENTE -> VALIDAÇÃO DIRETA (BYPASS CONCILIAÇÃO)
         if (isFonteDivergente) {
@@ -1042,7 +1043,15 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
               }}
             >
               <option value="">Selecione a conta que originou o pagamento...</option>
-              {contasBancarias.map(conta => (
+              {contasBancarias
+                .filter(conta => {
+                  const contaLateralId = selectedFonteId || fonteCorrenteId;
+                  const isContaLateral = conta.id === contaLateralId;
+                  const naoExigeExtrato = conta.exige_conciliacao_extrato === false || conta.exige_conciliacao_extrato === "false";
+                  const isSalvaNaDespesa = conta.id === doc?.fonte_pagadora_id;
+                  return isContaLateral || naoExigeExtrato || isSalvaNaDespesa;
+                })
+                .map(conta => (
                 <option key={conta.id} value={conta.id}>
                   {conta.nome} {conta.banco ? `- ${conta.banco}` : ''} {conta.conta ? `CC: ${conta.conta}` : ''}
                 </option>
