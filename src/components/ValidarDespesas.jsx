@@ -1294,7 +1294,7 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
     const timeoutId = setTimeout(() => controller.abort(), 15000);
 
     try {
-      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas?status=todos&limit=100&condominio_id=${currentCondo.id}&mes_ano=${mesAnoSelecionado}`, {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas?status=todos&limit=500&condominio_id=${currentCondo.id}&mes_ano=${mesAnoSelecionado}`, {
         signal: controller.signal
       });
       clearTimeout(timeoutId);

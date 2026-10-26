@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 
 /**
  * Testes Automatizados dos Cenários BDD: STORY-v1.54
@@ -7,6 +8,11 @@ import assert from "node:assert/strict";
  */
 
 describe("STORY-v1.54: Validação de Despesas - Filtro de Competência e Expansão de Limite", () => {
+  it("Cenário 01: Verificação estática do código-fonte de ValidarDespesas.jsx para limit=500", () => {
+    const sourceCode = fs.readFileSync(new URL("../components/ValidarDespesas.jsx", import.meta.url), "utf-8");
+    assert.ok(sourceCode.includes("limit=500"), "ValidarDespesas.jsx deve conter explicitamente 'limit=500'");
+    assert.ok(!sourceCode.includes("limit=100"), "ValidarDespesas.jsx NÃO deve conter 'limit=100'");
+  });
   it("Cenário 02 & 03: Montagem da URL de Carga com limit=500 e Cálculo de Contadores (RF-04, RF-05)", () => {
     const currentCondo = { id: "83262090-73af-41ef-8fb5-83dfb67ecb14", nome: "Lírios do Campo IV" };
     const mesAnoSelecionado = "2026-09";
