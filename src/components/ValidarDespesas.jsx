@@ -672,7 +672,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
       payload.mes_ano = mesAnoSelecionado;
     }
 
-    if (acaoPatch === "salvar" || acaoPatch === "confirmar") {
+    if (acaoPatch === "confirmar") {
       const dtLimpa = payload.data_pagamento && typeof payload.data_pagamento === "string"
         ? (payload.data_pagamento.includes("T") ? payload.data_pagamento.split("T")[0] : payload.data_pagamento)
         : payload.data_pagamento;
@@ -702,7 +702,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     setSalvando(true);
     setErro("");
     try {
-      if (acao !== "rejeitar" && acao !== "cancelar") {
+      if (acao === "confirmar") {
         if (dataForaDoPeriodo) {
           setErro(
             `A data de pagamento (${formatarDataBr(dataPgtoLimpa)}) está fora do período em processamento (${mesAnoSelecionado}). ` +
@@ -1103,43 +1103,49 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
         <div className="slip">
           <h2 className="section-title">Dados extraídos</h2>
 
+          {/* US-01: Banner de Advertência com Layout em Coluna (v1.57) */}
           {dataForaDoPeriodo && (
             <div className="feedback feedback--warning" style={{
               marginBottom: 16,
-              padding: "12px 16px",
+              padding: "14px 16px",
               background: "#fffbeb",
               border: "1px solid #fef08a",
               borderRadius: 8,
               color: "#b45309",
               display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              flexDirection: "column",
+              alignItems: "flex-start",
               gap: 12
             }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <AlertTriangle size={18} style={{ color: "#d97706", flexShrink: 0 }} />
-                <span style={{ fontSize: 13.5, fontWeight: 500 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                <AlertTriangle size={18} style={{ color: "#d97706", flexShrink: 0, marginTop: 2 }} />
+                <span style={{ fontSize: 13.5, fontWeight: 500, lineHeight: 1.45 }}>
                   Atenção: A data de pagamento ({formatarDataBr(dataPgtoLimpa)}) está fora do período em processamento ({mesAnoSelecionado}). Este documento não pode ser validado com esta data.
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={handleExcluirDireto}
-                disabled={salvando}
-                style={{
-                  background: "#fef3c7",
-                  border: "1px solid #fcd34d",
-                  color: "#92400e",
-                  padding: "5px 10px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  whiteSpace: "nowrap"
-                }}
-              >
-                Excluir Despesa
-              </button>
+              <div style={{ paddingLeft: 28 }}>
+                <button
+                  type="button"
+                  onClick={handleExcluirDireto}
+                  disabled={salvando}
+                  style={{
+                    background: "#fef3c7",
+                    border: "1px solid #fcd34d",
+                    color: "#92400e",
+                    padding: "6px 14px",
+                    borderRadius: 6,
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}
+                >
+                  <Trash2 size={13} />
+                  Excluir Despesa
+                </button>
+              </div>
             </div>
           )}
 
@@ -1313,19 +1319,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             >
               <XCircle size={15} /> Rejeitar
             </button>
-            <button
-              onClick={handleExcluirDireto}
-              disabled={salvando}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                border: "1px solid #ef4444", background: "transparent",
-                color: "#ef4444", borderRadius: 9, padding: "11px 16px",
-                fontWeight: 600, fontSize: 13.5, cursor: "pointer",
-              }}
-              title="Excluir despesa desta competência mensal"
-            >
-              <Trash2 size={15} /> Excluir Despesa
-            </button>
+
           </div>
         </div>
       </div>
