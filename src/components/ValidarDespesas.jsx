@@ -63,6 +63,43 @@ function ExternalLink({ size = 18, strokeWidth = 2 }) {
 /* ------------------------------------------------------------------ */
 const API_URL = () => import.meta.env.VITE_API_URL || "";
 
+export function calcularLimitesCompetencia(mesAnoSelecionado) {
+  if (!mesAnoSelecionado) {
+    return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
+  }
+  const s = String(mesAnoSelecionado).trim();
+  let ano = null;
+  let mes = null;
+  if (s.includes("-")) {
+    const parts = s.split("-").map(Number);
+    if (parts.length === 2) {
+      if (parts[0] > 1000) { [ano, mes] = parts; }
+      else { [mes, ano] = parts; }
+    }
+  } else if (s.includes("/")) {
+    const parts = s.split("/").map(Number);
+    if (parts.length === 2) {
+      if (parts[0] > 1000) { [ano, mes] = parts; }
+      else { [mes, ano] = parts; }
+    }
+  }
+  if (!ano || !mes || mes < 1 || mes > 12) {
+    return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
+  }
+  const ultimoDia = new Date(ano, mes, 0).getDate();
+  const minDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
+  const maxDate = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+  return { minDate, maxDate, ano, mes, ultimoDia };
+}
+
+export function formatarDataBr(val) {
+  if (!val) return "";
+  const clean = String(val).includes("T") ? String(val).split("T")[0] : String(val);
+  const parts = clean.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return val;
+}
+
 function formatBRL(v) {
   const n = Number(v);
   if (isNaN(n)) return "—";
@@ -406,26 +443,25 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   const [scanning, setScanning] = useState(false);
 
   const limitesCompetencia = useMemo(() => {
-    if (!mesAnoSelecionado || !mesAnoSelecionado.includes("-")) {
-      return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
-    }
-    const [ano, mes] = mesAnoSelecionado.split("-").map(Number);
-    if (!ano || !mes || mes < 1 || mes > 12) {
-      return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
-    }
-    const ultimoDia = new Date(ano, mes, 0).getDate();
-    const minDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
-    const maxDate = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
-    return { minDate, maxDate, ano, mes, ultimoDia };
+    return calcularLimitesCompetencia(mesAnoSelecionado);
   }, [mesAnoSelecionado]);
 
-  const formatarDataBr = (val) => {
-    if (!val) return "";
-    const clean = val.includes("T") ? val.split("T")[0] : val;
-    const parts = clean.split("-");
-    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-    return val;
-  };
+  const dataPgtoLimpa = form.data_pagamento && typeof form.data_pagamento === "string"
+    ? (form.data_pagamento.includes("T") ? form.data_pagamento.split("T")[0] : form.data_pagamento)
+    : form.data_pagamento;
+
+  const dataForaDoPeriodo = Boolean(
+    dataPgtoLimpa &&
+    limitesCompetencia.minDate &&
+    limitesCompetencia.maxDate &&
+    (dataPgtoLimpa < limitesCompetencia.minDate || dataPgtoLimpa > limitesCompetencia.maxDate)
+  );
+
+  useEffect(() => {
+    if (!dataForaDoPeriodo && erro && erro.includes("fora do período em processamento")) {
+      setErro("");
+    }
+  }, [dataForaDoPeriodo, erro]);
 
   const debounceTimerRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -637,11 +673,14 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     }
 
     if (acaoPatch === "salvar" || acaoPatch === "confirmar") {
-      if (payload.data_pagamento && limitesCompetencia.minDate && limitesCompetencia.maxDate) {
-        if (payload.data_pagamento < limitesCompetencia.minDate || payload.data_pagamento > limitesCompetencia.maxDate) {
+      const dtLimpa = payload.data_pagamento && typeof payload.data_pagamento === "string"
+        ? (payload.data_pagamento.includes("T") ? payload.data_pagamento.split("T")[0] : payload.data_pagamento)
+        : payload.data_pagamento;
+      if (dtLimpa && limitesCompetencia.minDate && limitesCompetencia.maxDate) {
+        if (dtLimpa < limitesCompetencia.minDate || dtLimpa > limitesCompetencia.maxDate) {
           throw new Error(
-            `A data de pagamento (${formatarDataBr(payload.data_pagamento)}) não pertence à competência ativa (${mesAnoSelecionado}). ` +
-            `Se a despesa foi paga em outro mês, não salve nesta competência: exclua o documento desta pasta mensal para aguardar e processá-lo no mês correto.`
+            `A data de pagamento (${formatarDataBr(dtLimpa)}) está fora do período em processamento (${mesAnoSelecionado}). ` +
+            `Ajuste a data de pagamento para este mês ou exclua a despesa desta pasta mensal para aguardar o fechamento do mês seguinte.`
           );
         }
       }
@@ -664,15 +703,13 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     setErro("");
     try {
       if (acao !== "rejeitar" && acao !== "cancelar") {
-        if (form.data_pagamento && limitesCompetencia.minDate && limitesCompetencia.maxDate) {
-          if (form.data_pagamento < limitesCompetencia.minDate || form.data_pagamento > limitesCompetencia.maxDate) {
-            setErro(
-              `A data de pagamento (${formatarDataBr(form.data_pagamento)}) não pertence à competência ativa (${mesAnoSelecionado}). ` +
-              `Se a despesa foi paga em outro mês, não salve nesta competência: exclua o documento desta pasta mensal para aguardar e processá-lo no mês correto.`
-            );
-            setSalvando(false);
-            return;
-          }
+        if (dataForaDoPeriodo) {
+          setErro(
+            `A data de pagamento (${formatarDataBr(dataPgtoLimpa)}) está fora do período em processamento (${mesAnoSelecionado}). ` +
+            `Ajuste a data de pagamento para este mês ou exclua a despesa desta pasta mensal para aguardar o fechamento do mês seguinte.`
+          );
+          setSalvando(false);
+          return;
         }
       }
 
@@ -1066,6 +1103,46 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
         <div className="slip">
           <h2 className="section-title">Dados extraídos</h2>
 
+          {dataForaDoPeriodo && (
+            <div className="feedback feedback--warning" style={{
+              marginBottom: 16,
+              padding: "12px 16px",
+              background: "#fffbeb",
+              border: "1px solid #fef08a",
+              borderRadius: 8,
+              color: "#b45309",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 12
+            }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <AlertTriangle size={18} style={{ color: "#d97706", flexShrink: 0 }} />
+                <span style={{ fontSize: 13.5, fontWeight: 500 }}>
+                  Atenção: A data de pagamento ({formatarDataBr(dataPgtoLimpa)}) está fora do período em processamento ({mesAnoSelecionado}). Este documento não pode ser validado com esta data.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleExcluirDireto}
+                disabled={salvando}
+                style={{
+                  background: "#fef3c7",
+                  border: "1px solid #fcd34d",
+                  color: "#92400e",
+                  padding: "5px 10px",
+                  borderRadius: 6,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap"
+                }}
+              >
+                Excluir Despesa
+              </button>
+            </div>
+          )}
+
           <div className="result-grid">
             {campo("Fornecedor",        "fornecedor",      "text",   "Não identificado")}
             {campo("CNPJ/CPF",          "cnpj_cpf",        "text",   "Não identificado")}
@@ -1261,6 +1338,9 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
 /* ------------------------------------------------------------------ */
 export default function ValidarDespesas() { const { currentCondo, mesAnoSelecionado } = useCondo();
   const [docs, setDocs]         = useState([]);
+  const limitesCompetencia = useMemo(() => {
+    return calcularLimitesCompetencia(mesAnoSelecionado);
+  }, [mesAnoSelecionado]);
   const [loading, setLoading]   = useState(true);
   const [erro, setErro]         = useState("");
   const [filtro, setFiltro]     = useState("todos");
@@ -1596,13 +1676,51 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                       {doc.numero_doc && doc.numero_doc !== "null" ? doc.numero_doc : "—"}
                     </td>
                     <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
-                      {doc.data_pagamento && doc.data_pagamento !== "null"
-                        ? (() => {
-                            const raw = doc.data_pagamento.includes("T") ? doc.data_pagamento : doc.data_pagamento + "T00:00:00";
-                            const dt = new Date(raw);
-                            return isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("pt-BR");
-                          })()
-                        : "—"}
+                      {(() => {
+                        const docDataPgto = doc.data_pagamento && typeof doc.data_pagamento === "string"
+                          ? (doc.data_pagamento.includes("T") ? doc.data_pagamento.split("T")[0] : doc.data_pagamento)
+                          : doc.data_pagamento;
+                        const dataForaDoMes = Boolean(
+                          docDataPgto &&
+                          limitesCompetencia.minDate &&
+                          limitesCompetencia.maxDate &&
+                          (docDataPgto < limitesCompetencia.minDate || docDataPgto > limitesCompetencia.maxDate)
+                        );
+                        return (
+                          <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                            <span>
+                              {doc.data_pagamento && doc.data_pagamento !== "null"
+                                ? (() => {
+                                    const raw = doc.data_pagamento.includes("T") ? doc.data_pagamento : doc.data_pagamento + "T00:00:00";
+                                    const dt = new Date(raw);
+                                    return isNaN(dt.getTime()) ? "—" : dt.toLocaleDateString("pt-BR");
+                                  })()
+                                : "—"}
+                            </span>
+                            {dataForaDoMes && (
+                              <span
+                                style={{
+                                  background: "#fef3c7",
+                                  color: "#92400e",
+                                  border: "1px solid #fcd34d",
+                                  fontSize: 10,
+                                  fontWeight: 600,
+                                  borderRadius: 4,
+                                  padding: "1px 5px",
+                                  whiteSpace: "nowrap",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 3
+                                }}
+                                title={`Data de pagamento fora do período (${mesAnoSelecionado})`}
+                              >
+                                <AlertTriangle size={10} style={{ color: "#d97706" }} />
+                                Data fora do mês
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
                       {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
