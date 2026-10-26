@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useCondo } from "../context/CondoContext";
 
 /* ------------------------------------------------------------------ */
@@ -147,10 +147,11 @@ function FotoModal({ url, onClose }) {
 /* ------------------------------------------------------------------ */
 /*  Campo de data com placeholder e picker inteligente                  */
 /* ------------------------------------------------------------------ */
-function MaskedDateInput({ value, onChange, placeholder, style, className }) {
+function MaskedDateInput({ value, onChange, placeholder, style, className, min, max }) {
   const formatValue = (val) => {
     if (!val) return "";
-    const parts = val.split("-");
+    const cleanVal = val.includes("T") ? val.split("T")[0] : val;
+    const parts = cleanVal.split("-");
     if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
     return val;
   };
@@ -163,6 +164,11 @@ function MaskedDateInput({ value, onChange, placeholder, style, className }) {
       setDisplay(formatValue(value));
     }
   }, [value, focused]);
+
+  const cleanVal = value && value.includes("T") ? value.split("T")[0] : value;
+  const isOutOfRange = Boolean(
+    cleanVal && ((min && cleanVal < min) || (max && cleanVal > max))
+  );
 
   const handleChange = (e) => {
     let raw = e.target.value.replace(/\D/g, "");
@@ -189,7 +195,26 @@ function MaskedDateInput({ value, onChange, placeholder, style, className }) {
     }
   };
 
-  return <input type="text" className={`${className || ""} ${!value ? "input--missing" : ""}`.trim()} style={style} placeholder={placeholder || "DD/MM/YYYY"} value={display} onChange={handleChange} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} />;
+  const combinedStyle = {
+    ...style,
+    ...(isOutOfRange ? { borderColor: "#ef4444", color: "#b91c1c", backgroundColor: "#fff5f5" } : {})
+  };
+
+  return (
+    <input
+      type="text"
+      min={min}
+      max={max}
+      className={`${className || ""} ${!value ? "input--missing" : ""} ${isOutOfRange ? "input--out-of-range" : ""}`.trim()}
+      style={combinedStyle}
+      placeholder={placeholder || "DD/MM/YYYY"}
+      value={display}
+      onChange={handleChange}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      title={isOutOfRange ? "Data fora da competência ativa" : undefined}
+    />
+  );
 }
 
 function MaskedCompInput({ value, onChange, placeholder, style, className }) {
@@ -379,6 +404,28 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   const [alertaSemConciliacao, setAlertaSemConciliacao] = useState(false);
   const [showToast, setShowToast] = useState("");
   const [scanning, setScanning] = useState(false);
+
+  const limitesCompetencia = useMemo(() => {
+    if (!mesAnoSelecionado || !mesAnoSelecionado.includes("-")) {
+      return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
+    }
+    const [ano, mes] = mesAnoSelecionado.split("-").map(Number);
+    if (!ano || !mes || mes < 1 || mes > 12) {
+      return { minDate: null, maxDate: null, ano: null, mes: null, ultimoDia: null };
+    }
+    const ultimoDia = new Date(ano, mes, 0).getDate();
+    const minDate = `${ano}-${String(mes).padStart(2, "0")}-01`;
+    const maxDate = `${ano}-${String(mes).padStart(2, "0")}-${String(ultimoDia).padStart(2, "0")}`;
+    return { minDate, maxDate, ano, mes, ultimoDia };
+  }, [mesAnoSelecionado]);
+
+  const formatarDataBr = (val) => {
+    if (!val) return "";
+    const clean = val.includes("T") ? val.split("T")[0] : val;
+    const parts = clean.split("-");
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    return val;
+  };
 
   const debounceTimerRef = useRef(null);
   const isInitialMount = useRef(true);
@@ -585,6 +632,21 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
 
     if (payload.valor_total === "") payload.valor_total = null;
 
+    if (mesAnoSelecionado) {
+      payload.mes_ano = mesAnoSelecionado;
+    }
+
+    if (acaoPatch === "salvar" || acaoPatch === "confirmar") {
+      if (payload.data_pagamento && limitesCompetencia.minDate && limitesCompetencia.maxDate) {
+        if (payload.data_pagamento < limitesCompetencia.minDate || payload.data_pagamento > limitesCompetencia.maxDate) {
+          throw new Error(
+            `A data de pagamento (${formatarDataBr(payload.data_pagamento)}) não pertence à competência ativa (${mesAnoSelecionado}). ` +
+            `Se a despesa foi paga em outro mês, não salve nesta competência: exclua o documento desta pasta mensal para aguardar e processá-lo no mês correto.`
+          );
+        }
+      }
+    }
+
     const resp = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
@@ -601,9 +663,29 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     setSalvando(true);
     setErro("");
     try {
+      if (acao !== "rejeitar" && acao !== "cancelar") {
+        if (form.data_pagamento && limitesCompetencia.minDate && limitesCompetencia.maxDate) {
+          if (form.data_pagamento < limitesCompetencia.minDate || form.data_pagamento > limitesCompetencia.maxDate) {
+            setErro(
+              `A data de pagamento (${formatarDataBr(form.data_pagamento)}) não pertence à competência ativa (${mesAnoSelecionado}). ` +
+              `Se a despesa foi paga em outro mês, não salve nesta competência: exclua o documento desta pasta mensal para aguardar e processá-lo no mês correto.`
+            );
+            setSalvando(false);
+            return;
+          }
+        }
+      }
+
       if (acao === "rejeitar") {
         await salvarDespesaPatch(acao);
         onSalvo();
+        return;
+      }
+
+      if (acao === "salvar") {
+        await salvarDespesaPatch("salvar");
+        setShowToast("Despesa salva com sucesso.");
+        setSalvando(false);
         return;
       }
 
@@ -746,6 +828,28 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
     }
   };
 
+  const handleExcluirDireto = async () => {
+    if (!window.confirm("Deseja realmente excluir esta despesa desta competência mensal?\nEsta ação é recomendada caso o pagamento pertença a outro mês.")) {
+      return;
+    }
+    setSalvando(true);
+    setErro("");
+    try {
+      const res = await fetch(`${API_URL()}/api/v1/validacao/despesas/${docId}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => null);
+        throw new Error(errorData?.detail || "Erro ao excluir despesa.");
+      }
+      setShowToast("Despesa excluída com sucesso.");
+      setTimeout(() => onSalvo(), 1200);
+    } catch (err) {
+      setErro(err.message);
+      setSalvando(false);
+    }
+  };
+
   const handleConsultarOriginal = async () => {
     const rawChave = form.chave_acesso || doc?.chave_acesso || "";
     const chave = rawChave.replace(/\D/g, "");
@@ -785,6 +889,11 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   const campo = (label, key, type = "text", placeholder = "Não identificado") => {
     const val = form[key] ?? "";
     const isMissing = val === null || val === "";
+    const isDataPgto = key === "data_pagamento";
+    const cleanVal = val && typeof val === "string" && val.includes("T") ? val.split("T")[0] : val;
+    const isOutOfRange = Boolean(
+      isDataPgto && cleanVal && limitesCompetencia.minDate && limitesCompetencia.maxDate && (cleanVal < limitesCompetencia.minDate || cleanVal > limitesCompetencia.maxDate)
+    );
 
     return (
       <div className="field">
@@ -802,6 +911,8 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             value={val}
             onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
             placeholder="DD/MM/YYYY"
+            min={isDataPgto ? limitesCompetencia.minDate : undefined}
+            max={isDataPgto ? limitesCompetencia.maxDate : undefined}
             style={{ textAlign: "center" }}
             className="input"
           />
@@ -822,6 +933,11 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
             value={val}
             onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
           />
+        )}
+        {isOutOfRange && (
+          <span style={{ color: "#ef4444", fontSize: "11px", marginTop: "2px", display: "block", textAlign: "center" }}>
+            Fora do mês ({mesAnoSelecionado})
+          </span>
         )}
       </div>
     );
@@ -1071,15 +1187,28 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
           )}
 
           {/* Ações */}
-          <div style={{ display: "flex", gap: 10 }}>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             <button
               className="btn-primary"
               disabled={salvando}
               onClick={() => handleAcao("confirmar")}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 140 }}
             >
               {salvando ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />}
               Confirmar
+            </button>
+            <button
+              disabled={salvando}
+              onClick={() => handleAcao("salvar")}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                border: "1px solid var(--line)", background: "transparent",
+                color: "var(--ink)", borderRadius: 9, padding: "11px 16px",
+                fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+              }}
+              title="Salvar alterações sem validar"
+            >
+              Salvar
             </button>
             {doc.status === "erro" && (
               <button
@@ -1106,6 +1235,19 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
               }}
             >
               <XCircle size={15} /> Rejeitar
+            </button>
+            <button
+              onClick={handleExcluirDireto}
+              disabled={salvando}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                border: "1px solid #ef4444", background: "transparent",
+                color: "#ef4444", borderRadius: 9, padding: "11px 16px",
+                fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+              }}
+              title="Excluir despesa desta competência mensal"
+            >
+              <Trash2 size={15} /> Excluir Despesa
             </button>
           </div>
         </div>
