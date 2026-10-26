@@ -485,7 +485,7 @@ export default function ConciliarDespesas() {
     setLoading(true);
     setErro("");
     setSelecionadasTrans(new Set());
-    const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, condominio_id: selectedCondoId || "", limit: "200" });
+    const params = new URLSearchParams({ mes_ano: mesAnoSelecionado, condominio_id: selectedCondoId || "", limit: "500" });
     fetch(`${API()}/api/v1/conciliacao/transacoes?${params}`)
       .then(r => r.json())
       .then(setTransacoes)
