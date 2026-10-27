@@ -25,6 +25,15 @@ function Trash2({ size = 18, strokeWidth = 2, className }) {
 function Loader2({ size = 18, strokeWidth = 2, className }) {
   return <svg {...iconBase(size, strokeWidth)} className={className}><path d="M21 12a9 9 0 1 1-6.219-8.56" /></svg>;
 }
+function Save({ size = 18, strokeWidth = 2, className }) {
+  return (
+    <svg {...iconBase(size, strokeWidth)} className={className}>
+      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+      <polyline points="17 21 17 13 7 13 7 21" />
+      <polyline points="7 3 7 8 15 8" />
+    </svg>
+  );
+}
 function CheckCircle2({ size = 18, strokeWidth = 2 }) {
   return <svg {...iconBase(size, strokeWidth)}><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z" /><path d="m9 12 2 2 4-4" /></svg>;
 }
@@ -715,13 +724,17 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
 
       if (acao === "rejeitar") {
         await salvarDespesaPatch(acao);
-        onSalvo();
+        setDoc(prev => ({ ...prev, status: "erro" }));
+        setShowToast("Despesa rejeitada.");
+        setTimeout(() => setShowToast(""), 3000);
+        setSalvando(false);
         return;
       }
 
       if (acao === "salvar") {
         await salvarDespesaPatch("salvar");
         setShowToast("Despesa salva com sucesso.");
+        setTimeout(() => setShowToast(""), 3000);
         setSalvando(false);
         return;
       }
@@ -866,7 +879,7 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
   };
 
   const handleExcluirDireto = async () => {
-    if (!window.confirm("Deseja realmente excluir esta despesa desta competência mensal?\nEsta ação é recomendada caso o pagamento pertença a outro mês.")) {
+    if (!window.confirm("Deseja realmente excluir esta despesa? Esta ação não pode ser desfeita.")) {
       return;
     }
     setSalvando(true);
@@ -1270,57 +1283,81 @@ function DetalheDespesa({ docId, onVoltar, onSalvo, revisaoIds, toggleRevisao })
           )}
 
           {/* Ações */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <button
-              className="btn-primary"
-              disabled={salvando}
-              onClick={() => handleAcao("confirmar")}
-              style={{ flex: 1, minWidth: 140 }}
-            >
-              {salvando ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />}
-              Confirmar
-            </button>
-            <button
-              disabled={salvando}
-              onClick={() => handleAcao("salvar")}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                border: "1px solid var(--line)", background: "transparent",
-                color: "var(--ink)", borderRadius: 9, padding: "11px 16px",
-                fontWeight: 600, fontSize: 13.5, cursor: "pointer",
-              }}
-              title="Salvar alterações sem validar"
-            >
-              Salvar
-            </button>
-            {doc.status === "erro" && (
+          {doc?.status === "erro" ? (
+            <div style={{ display: "flex", gap: 10, width: "100%", alignItems: "center" }}>
               <button
                 onClick={handleReprocessar}
                 disabled={salvando}
                 style={{
-                  display: "flex", alignItems: "center", gap: 6,
+                  flex: 1, minWidth: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                   border: "1px solid #4b5567", background: "transparent",
                   color: "#4b5567", borderRadius: 9, padding: "11px 16px",
                   fontWeight: 600, fontSize: 13.5, cursor: "pointer",
                 }}
               >
-                <RefreshCw size={15} /> Reprocessar
+                {salvando ? <Loader2 size={15} className="spin" /> : <RefreshCw size={15} />}
+                Reprocessar
               </button>
-            )}
-            <button
-              onClick={() => handleAcao("rejeitar")}
-              disabled={salvando}
-              style={{
-                display: "flex", alignItems: "center", gap: 6,
-                border: "1px solid #b3452f", background: "transparent",
-                color: "#b3452f", borderRadius: 9, padding: "11px 16px",
-                fontWeight: 600, fontSize: 13.5, cursor: "pointer",
-              }}
-            >
-              <XCircle size={15} /> Rejeitar
-            </button>
-
-          </div>
+              <button
+                onClick={handleExcluirDireto}
+                disabled={salvando}
+                style={{
+                  flex: 1, minWidth: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  border: "1px solid #ef4444", background: "transparent",
+                  color: "#ef4444", borderRadius: 9, padding: "11px 16px",
+                  fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+                }}
+              >
+                {salvando ? <Loader2 size={15} className="spin" /> : <Trash2 size={15} />}
+                Excluir
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 10, width: "100%", alignItems: "center" }}>
+              <button
+                className="btn-primary"
+                disabled={salvando}
+                onClick={() => handleAcao("confirmar")}
+                style={{
+                  flex: 1, minWidth: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  padding: "11px 16px", borderRadius: 9, fontWeight: 600, fontSize: 13.5,
+                }}
+              >
+                {salvando ? <Loader2 size={15} className="spin" /> : <CheckCircle2 size={15} />}
+                Confirmar
+              </button>
+              <button
+                onClick={() => handleAcao("rejeitar")}
+                disabled={salvando}
+                style={{
+                  flex: 1, minWidth: 0,
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                  border: "1px solid #b3452f", background: "transparent",
+                  color: "#b3452f", borderRadius: 9, padding: "11px 16px",
+                  fontWeight: 600, fontSize: 13.5, cursor: "pointer",
+                }}
+              >
+                {salvando ? <Loader2 size={15} className="spin" /> : <XCircle size={15} />}
+                Rejeitar
+              </button>
+              <button
+                disabled={salvando}
+                onClick={() => handleAcao("salvar")}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "1px solid var(--line)", background: "transparent",
+                  color: "var(--ink)", borderRadius: 9, width: 42, height: 42,
+                  cursor: "pointer", flexShrink: 0,
+                }}
+                title="Salvar alterações sem validar"
+              >
+                {salvando ? <Loader2 size={16} className="spin" /> : <Save size={16} />}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
