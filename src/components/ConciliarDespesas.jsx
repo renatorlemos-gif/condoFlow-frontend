@@ -336,11 +336,8 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
         <td style={{ padding: "11px 8px 11px 0", fontSize: 12, color: "var(--ink-soft)", fontFamily: "IBM Plex Mono, monospace", textAlign: "center" }}>
           {formatDate(trans.data_transacao)}
         </td>
-        <td style={{ padding: "11px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word", textAlign: "center" }}>
-          <span style={{ display: "block", wordBreak: "break-word" }}>
-            {trans.descricao || "—"}
-          </span>
-          <span style={{ fontSize: 11, color: "var(--slate)", textTransform: "capitalize", wordBreak: "break-word" }}>{trans.banco}</span>
+        <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--ink)", wordBreak: "break-word", textAlign: "center" }}>
+          {trans.descricao || "—"}
         </td>
         <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 13,
                      fontWeight: 600, color: trans.tipo === "credito" ? "var(--ledger)" : "var(--ink)",
@@ -684,7 +681,7 @@ export default function ConciliarDespesas() {
                       <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
                       {[
                         { label: "Data", key: "data_transacao", width: "12%", align: "center", padding: "10px 8px 10px 0" },
-                        { label: "Descrição / Banco", key: "descricao", width: "38%", align: "center", padding: "10px 14px" },
+                        { label: "Descrição", key: "descricao", width: "38%", align: "center", padding: "10px 14px" },
                         { label: "Valor", key: "valor", width: "15%", align: "center", padding: "10px 14px" },
                         { label: "Despesa Vinculado", key: "status_conciliacao", width: "30%", align: "center", padding: "10px 14px" }
                       ].map((h) => (
