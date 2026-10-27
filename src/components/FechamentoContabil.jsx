@@ -2,6 +2,14 @@ import React, { useState, useEffect } from "react";
 import { Download, AlertTriangle, Loader2 } from "./layout/icons";
 import { useCondo } from "../context/CondoContext";
 
+function formatarDataBr(val) {
+  if (!val) return "—";
+  const clean = String(val).includes("T") ? String(val).split("T")[0] : String(val);
+  const parts = clean.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return val;
+}
+
 export default function FechamentoContabil() {
   const { currentAdm, currentCondo, mesAnoSelecionado } = useCondo();
   const [despesas, setDespesas] = useState([]);
@@ -220,7 +228,7 @@ export default function FechamentoContabil() {
                   return (
                     <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
                       <td style={{ padding: "10px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
-                        {d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10) || "—"}
+                        {formatarDataBr(d.data_pagamento || d.data_emissao)}
                       </td>
                       <td style={{ padding: "10px 8px", textAlign: "center", fontSize: 12, wordBreak: "break-word" }} title={d.fornecedor}>
                         {isIncompleto && (
