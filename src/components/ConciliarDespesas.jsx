@@ -70,7 +70,9 @@ function mesesDisponiveis() {
 /* ------------------------------------------------------------------ */
 /*  Modal de seleção manual de despesa (Suporta N x N)               */
 /* ------------------------------------------------------------------ */
-function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
+function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar, condominioId }) {
+  const { selectedCondoId } = useCondo();
+  const condoId = condominioId || selectedCondoId;
   const [docs, setDocs]     = useState([]);
   const [busca, setBusca]   = useState("");
   const [loading, setLoading] = useState(true);
@@ -81,7 +83,8 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API()}/api/v1/conciliacao/despesas-disponiveis`)
+    const condoParam = condoId ? `?condominio_id=${encodeURIComponent(condoId)}` : "";
+    fetch(`${API()}/api/v1/conciliacao/despesas-disponiveis${condoParam}`)
       .then(async r => {
         if (!r.ok) throw new Error(await r.text());
         return r.json();
@@ -92,7 +95,7 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
         alert("Falha ao carregar despesas disponíveis.");
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [condoId]);
 
   const filtrados = docs.filter(d =>
     !busca ||
@@ -254,7 +257,7 @@ function ModalSelecionarDoc({ transacoes, onConfirmar, onFechar }) {
 /* ------------------------------------------------------------------ */
 /*  Linha da tabela                                                     */
 /* ------------------------------------------------------------------ */
-function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleSelec }) {
+function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleSelec, condominioId }) {
   const [salvando, setSalvando] = useState(false);
   const [modalAberto, setModalAberto] = useState(false);
 
@@ -316,6 +319,7 @@ function LinhaTransacao({ trans, onConciliar, onDesfazer, selecionada, onToggleS
       {modalAberto && (
         <ModalSelecionarDoc
           transacoes={[trans]}
+          condominioId={condominioId}
           onConfirmar={confirmarModal}
           onFechar={() => setModalAberto(false)}
         />
@@ -583,6 +587,7 @@ export default function ConciliarDespesas() {
       {modalLoteAberto && (
         <ModalSelecionarDoc
           transacoes={selecionadasArr}
+          condominioId={condominioAtivo}
           onConfirmar={handleVincularLote}
           onFechar={() => setModalLoteAberto(false)}
         />
@@ -700,6 +705,7 @@ export default function ConciliarDespesas() {
                       <LinhaTransacao
                         key={trans.id}
                         trans={trans}
+                        condominioId={condominioAtivo}
                         onConciliar={handleConciliar}
                         onDesfazer={handleDesfazer}
                         selecionada={selecionadasTrans.has(trans.id)}
