@@ -190,11 +190,11 @@ export default function FechamentoContabil() {
               <thead>
                 <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
                   {[
-                    { label: "DT.PAGTO", key: "data_pagamento", width: "15%" },
+                    { label: "DT. PAGTO", key: "data_pagamento", width: "15%" },
                     { label: "FORNECEDOR", key: "fornecedor", width: "23%" },
                     { label: "VALOR", key: "valor_total", width: "14%" },
-                    { label: "FONTE", key: "conta_credora_codigo", width: "24%" },
-                    { label: "CONTA", key: "conta_devedora_codigo", width: "24%" }
+                    { label: "CONTA", key: "conta_devedora_codigo", width: "24%" },
+                    { label: "FONTE", key: "conta_credora_codigo", width: "24%" }
                   ].map((h) => (
                     <th key={h.key} 
                       onClick={() => handleSort(h.key)}
@@ -235,11 +235,11 @@ export default function FechamentoContabil() {
                       <td style={{ padding: "8px 8px", textAlign: "center" }}>
                         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
                           <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
-                            {codFonte || "—"}
+                            {d.conta_devedora_codigo || "—"}
                           </span>
-                          {descFonte && (
+                          {d.conta_devedora_descricao && (
                             <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word", lineHeight: 1.25 }}>
-                              {descFonte}
+                              {d.conta_devedora_descricao}
                             </span>
                           )}
                         </div>
@@ -247,11 +247,11 @@ export default function FechamentoContabil() {
                       <td style={{ padding: "8px 8px", textAlign: "center" }}>
                         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
                           <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
-                            {d.conta_devedora_codigo || "—"}
+                            {codFonte || "—"}
                           </span>
-                          {d.conta_devedora_descricao && (
+                          {descFonte && (
                             <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word", lineHeight: 1.25 }}>
-                              {d.conta_devedora_descricao}
+                              {descFonte}
                             </span>
                           )}
                         </div>
