@@ -55,6 +55,12 @@ export default function FechamentoContabil() {
     if (key === "valor_total") {
       valA = Number(valA || 0);
       valB = Number(valB || 0);
+    } else if (key === "conta_devedora_codigo" || key === "conta_credora_codigo") {
+      valA = String(valA || (key === 'conta_credora_codigo' ? (a.conta_credora_descricao || '').split(' - ')[0] : ''));
+      valB = String(valB || (key === 'conta_credora_codigo' ? (b.conta_credora_descricao || '').split(' - ')[0] : ''));
+      return sortConfig.direction === "asc"
+        ? valA.localeCompare(valB, undefined, { numeric: true, sensitivity: "base" })
+        : valB.localeCompare(valA, undefined, { numeric: true, sensitivity: "base" });
     } else {
       valA = String(valA).toLowerCase();
       valB = String(valB).toLowerCase();
@@ -180,21 +186,24 @@ export default function FechamentoContabil() {
           </div>
         ) : (
           <div style={{ overflowX: "auto", width: "100%", minWidth: 0 }}>
-            <table style={{ width: "100%", minWidth: 700, fontSize: "13px", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", minWidth: 700, fontSize: "13px", borderCollapse: "collapse", tableLayout: "fixed" }}>
               <thead>
                 <tr style={{ background: "var(--paper)", borderBottom: "2px solid var(--line)", textAlign: "center" }}>
                   {[
-                    { label: "Fornecedor", key: "fornecedor" },
-                    { label: "Data Pag.", key: "data_pagamento" },
-                    { label: "Valor", key: "valor_total" },
-                    { label: "Fonte Pagadora", key: "conta_credora_descricao" },
-                    { label: "Conta de Despesa", key: "conta_devedora_codigo" }
+                    { label: "DT.PAGTO", key: "data_pagamento", width: "15%" },
+                    { label: "FORNECEDOR", key: "fornecedor", width: "23%" },
+                    { label: "VALOR", key: "valor_total", width: "14%" },
+                    { label: "FONTE", key: "conta_credora_codigo", width: "24%" },
+                    { label: "CONTA", key: "conta_devedora_codigo", width: "24%" }
                   ].map((h) => (
                     <th key={h.key} 
                       onClick={() => handleSort(h.key)}
                       style={{
-                        padding: "10px", textAlign: "center", whiteSpace: "nowrap",
-                        cursor: "pointer", userSelect: "none"
+                        width: h.width,
+                        padding: "10px 8px", textAlign: "center", whiteSpace: "nowrap",
+                        fontSize: "10.5px", textTransform: "uppercase",
+                        letterSpacing: "0.06em", color: "var(--slate)",
+                        fontWeight: 600, cursor: "pointer", userSelect: "none"
                     }}>
                       {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
                     </th>
@@ -202,26 +211,54 @@ export default function FechamentoContabil() {
                 </tr>
               </thead>
               <tbody>
-                {despesasOrdenadas.map(d => (
-                  <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                    <td style={{ padding: "10px", textAlign: "center" }} title={d.fornecedor}>
-                      {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
-                        <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
-                          <AlertTriangle size={14} />
-                        </span>
-                      )}
-                      <span style={{ verticalAlign: "middle" }}>{d.fornecedor}</span>
-                    </td>
-                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>{d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10)}</td>
-                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }}>R$ {parseFloat(d.valor_total).toFixed(2)}</td>
-                    <td style={{ padding: "10px", textAlign: "center", whiteSpace: "nowrap" }} title={d.conta_credora_descricao || "N/A"}>
-                      {d.conta_credora_descricao || "N/A"}
-                    </td>
-                    <td style={{ padding: "10px", textAlign: "center" }} title={d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}>
-                      {d.conta_devedora_codigo ? `${d.conta_devedora_codigo} - ${d.conta_devedora_descricao || ""}` : "N/A"}
-                    </td>
-                  </tr>
-                ))}
+                {despesasOrdenadas.map(d => {
+                  const fontePartes = (d.conta_credora_descricao || "").split(" - ");
+                  const codFonte = d.conta_credora_codigo || fontePartes[0] || "";
+                  const descFonte = d.conta_credora_nome || (fontePartes.length > 1 ? fontePartes.slice(1).join(" - ") : "");
+
+                  return (
+                    <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
+                      <td style={{ padding: "10px 8px", textAlign: "center", whiteSpace: "nowrap" }}>
+                        {d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10) || "—"}
+                      </td>
+                      <td style={{ padding: "10px 8px", textAlign: "center", fontSize: 12, wordBreak: "break-word" }} title={d.fornecedor}>
+                        {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
+                          <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
+                            <AlertTriangle size={14} />
+                          </span>
+                        )}
+                        <span style={{ verticalAlign: "middle" }}>{d.fornecedor || "—"}</span>
+                      </td>
+                      <td style={{ padding: "10px 8px", textAlign: "center", whiteSpace: "nowrap", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                        R$ {parseFloat(d.valor_total).toFixed(2)}
+                      </td>
+                      <td style={{ padding: "8px 8px", textAlign: "center" }}>
+                        <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
+                          <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                            {codFonte || "—"}
+                          </span>
+                          {descFonte && (
+                            <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word", lineHeight: 1.25 }}>
+                              {descFonte}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: "8px 8px", textAlign: "center" }}>
+                        <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
+                          <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                            {d.conta_devedora_codigo || "—"}
+                          </span>
+                          {d.conta_devedora_descricao && (
+                            <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word", lineHeight: 1.25 }}>
+                              {d.conta_devedora_descricao}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

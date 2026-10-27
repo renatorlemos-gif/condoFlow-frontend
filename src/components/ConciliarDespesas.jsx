@@ -680,7 +680,7 @@ export default function ConciliarDespesas() {
                     <tr style={{ background: "var(--paper)", borderBottom: "1px solid var(--line)" }}>
                       <th style={{ width: "5%", padding: "10px 4px 10px 10px", textAlign: "center" }}></th>
                       {[
-                        { label: "Data", key: "data_transacao", width: "12%", align: "center", padding: "10px 8px 10px 0" },
+                        { label: "DT. PAGTO", key: "data_transacao", width: "12%", align: "center", padding: "10px 8px 10px 0" },
                         { label: "Descrição", key: "descricao", width: "38%", align: "center", padding: "10px 14px" },
                         { label: "Valor", key: "valor", width: "15%", align: "center", padding: "10px 14px" },
                         { label: "Despesa Vinculado", key: "status_conciliacao", width: "30%", align: "center", padding: "10px 14px" }
