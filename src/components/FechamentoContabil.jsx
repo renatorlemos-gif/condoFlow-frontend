@@ -213,8 +213,9 @@ export default function FechamentoContabil() {
               <tbody>
                 {despesasOrdenadas.map(d => {
                   const fontePartes = (d.conta_credora_descricao || "").split(" - ");
-                  const codFonte = d.conta_credora_codigo || fontePartes[0] || "";
-                  const descFonte = d.conta_credora_nome || (fontePartes.length > 1 ? fontePartes.slice(1).join(" - ") : "");
+                  const codFonte = d.conta_credora_codigo || (fontePartes.length > 1 ? fontePartes[0] : "");
+                  const descFonte = d.conta_credora_nome || (fontePartes.length > 1 ? fontePartes.slice(1).join(" - ") : (d.conta_credora_descricao || ""));
+                  const isIncompleto = !codFonte || !d.conta_devedora_codigo;
 
                   return (
                     <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
@@ -222,8 +223,8 @@ export default function FechamentoContabil() {
                         {d.data_pagamento?.substring(0,10) || d.data_emissao?.substring(0,10) || "—"}
                       </td>
                       <td style={{ padding: "10px 8px", textAlign: "center", fontSize: 12, wordBreak: "break-word" }} title={d.fornecedor}>
-                        {(!d.conta_credora_descricao || !d.conta_devedora_codigo) && (
-                          <span title="Incompleto: Falta conta de despesa ou fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
+                        {isIncompleto && (
+                          <span title="Incompleto: Falta código contábil da conta de despesa ou da fonte pagadora" style={{ color: "var(--red)", marginRight: "6px", verticalAlign: "middle" }}>
                             <AlertTriangle size={14} />
                           </span>
                         )}
@@ -234,7 +235,7 @@ export default function FechamentoContabil() {
                       </td>
                       <td style={{ padding: "8px 8px", textAlign: "center" }}>
                         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
-                          <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                          <span style={{ fontWeight: 600, color: d.conta_devedora_codigo ? "var(--ink)" : "var(--red)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
                             {d.conta_devedora_codigo || "—"}
                           </span>
                           {d.conta_devedora_descricao && (
@@ -246,7 +247,7 @@ export default function FechamentoContabil() {
                       </td>
                       <td style={{ padding: "8px 8px", textAlign: "center" }}>
                         <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
-                          <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                          <span style={{ fontWeight: 600, color: codFonte ? "var(--ink)" : "var(--red)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
                             {codFonte || "—"}
                           </span>
                           {descFonte && (
