@@ -1491,6 +1491,10 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
     if (key === "valor_total") {
       valA = Number(valA);
       valB = Number(valB);
+    } else if (key === "conta_devedora_codigo") {
+      return sortConfig.direction === "asc"
+        ? String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: "base" })
+        : String(valB).localeCompare(String(valA), undefined, { numeric: true, sensitivity: "base" });
     } else {
       valA = String(valA).toLowerCase();
       valB = String(valB).toLowerCase();
@@ -1618,11 +1622,11 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
             <thead>
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
                 {[
-                  { label: "Fornecedor", key: "fornecedor" },
-                  { label: "Nº Doc", key: "numero_doc" },
-                  { label: "Data Pagamento", key: "data_pagamento" },
-                  { label: "Valor (R$)", key: "valor_total" },
-                  { label: "Status", key: "status" }
+                  { label: "DT. PGTO", key: "data_pagamento" },
+                  { label: "FORNECEDOR", key: "fornecedor" },
+                  { label: "CONTA", key: "conta_devedora_codigo" },
+                  { label: "VALOR", key: "valor_total" },
+                  { label: "STATUS", key: "status" }
                 ].map((h) => (
                   <th key={h.key} 
                     onClick={() => handleSort(h.key)}
@@ -1663,12 +1667,6 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                     onMouseEnter={(e) => e.currentTarget.style.background = "var(--paper)"}
                     onMouseLeave={(e) => e.currentTarget.style.background = rowBgColor}
                   >
-                    <td style={{ padding: "11px 14px", fontWeight: 500, color: "var(--ink)", textAlign: "center" }}>
-                      {doc.fornecedor && doc.fornecedor !== "null" ? doc.fornecedor : <span style={{ color: "var(--slate)" }}>—</span>}
-                    </td>
-                    <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
-                      {doc.numero_doc && doc.numero_doc !== "null" ? doc.numero_doc : "—"}
-                    </td>
                     <td style={{ padding: "11px 14px", color: "var(--ink-soft)", textAlign: "center" }}>
                       {(() => {
                         const docDataPgto = doc.data_pagamento && typeof doc.data_pagamento === "string"
@@ -1715,6 +1713,19 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                           </div>
                         );
                       })()}
+                    </td>
+                    <td style={{ padding: "11px 14px", fontWeight: 500, color: "var(--ink)", textAlign: "center" }}>
+                      {doc.fornecedor && doc.fornecedor !== "null" ? doc.fornecedor : <span style={{ color: "var(--slate)" }}>—</span>}
+                    </td>
+                    <td style={{ padding: "10px 14px", textAlign: "center" }}>
+                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                        <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
+                          {doc.conta_devedora_codigo || "—"}
+                        </span>
+                        <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word" }}>
+                          {doc.conta_devedora_descricao || "—"}
+                        </span>
+                      </div>
                     </td>
                     <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
                       {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
