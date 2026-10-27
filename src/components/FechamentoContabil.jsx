@@ -16,7 +16,7 @@ export default function FechamentoContabil() {
     if (currentCondo && mesAnoSelecionado) {
       setLoading(true);
       setErro("");
-      fetch(`${API_URL}/api/v1/validacao/despesas?status=validado,conciliado`)
+      fetch(`${API_URL}/api/v1/validacao/despesas?status=validado,conciliado&limit=1000&condominio_id=${currentCondo.id}&mes_ano=${mesAnoSelecionado}`)
         .then(res => res.json())
         .then(data => {
           const docs = data.filter(d => {
