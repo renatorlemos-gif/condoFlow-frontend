@@ -1618,20 +1618,21 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
       {/* Tabela com scroll horizontal fluido mobile (US-03) */}
       {!loading && docsFiltrados.length > 0 && (
         <div className="slip" style={{ padding: 0, overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}>
-          <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", fontSize: 13 }}>
+          <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", fontSize: 13, tableLayout: "fixed" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--line)", background: "var(--paper)" }}>
                 {[
-                  { label: "DT. PGTO", key: "data_pagamento" },
-                  { label: "FORNECEDOR", key: "fornecedor" },
-                  { label: "CONTA", key: "conta_devedora_codigo" },
-                  { label: "VALOR", key: "valor_total" },
-                  { label: "STATUS", key: "status" }
+                  { label: "DT. PGTO", key: "data_pagamento", width: "15%" },
+                  { label: "FORNECEDOR", key: "fornecedor", width: "23%" },
+                  { label: "CONTA", key: "conta_devedora_codigo", width: "36%" },
+                  { label: "VALOR", key: "valor_total", width: "12%" },
+                  { label: "STATUS", key: "status", width: "10%" }
                 ].map((h) => (
                   <th key={h.key} 
                     onClick={() => handleSort(h.key)}
                     style={{
-                      padding: "10px 14px", textAlign: "center",
+                      width: h.width,
+                      padding: "10px 8px", textAlign: "center",
                       fontSize: 10.5, textTransform: "uppercase",
                       letterSpacing: "0.06em", color: "var(--slate)",
                       fontWeight: 600, cursor: "pointer",
@@ -1640,7 +1641,7 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                     {h.label} {sortConfig.key === h.key ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
                   </th>
                 ))}
-                <th style={{ width: 44, padding: "10px 8px" }}></th>
+                <th style={{ width: "4%", padding: "10px 4px" }}></th>
               </tr>
             </thead>
             <tbody>
@@ -1714,24 +1715,24 @@ export default function ValidarDespesas() { const { currentCondo, mesAnoSelecion
                         );
                       })()}
                     </td>
-                    <td style={{ padding: "11px 14px", fontWeight: 500, color: "var(--ink)", textAlign: "center" }}>
+                    <td style={{ padding: "10px 8px", fontWeight: 400, fontSize: 12, color: "var(--ink)", textAlign: "center", wordBreak: "break-word" }}>
                       {doc.fornecedor && doc.fornecedor !== "null" ? doc.fornecedor : <span style={{ color: "var(--slate)" }}>—</span>}
                     </td>
-                    <td style={{ padding: "10px 14px", textAlign: "center" }}>
-                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
+                    <td style={{ padding: "8px 10px", textAlign: "center" }}>
+                      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", gap: 2, maxWidth: "100%" }}>
                         <span style={{ fontWeight: 600, color: "var(--ink)", fontFamily: "IBM Plex Mono, monospace", fontSize: 12 }}>
                           {doc.conta_devedora_codigo || "—"}
                         </span>
-                        <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word" }}>
+                        <span style={{ fontSize: 11, color: "var(--slate)", wordBreak: "break-word", lineHeight: 1.25 }}>
                           {doc.conta_devedora_descricao || "—"}
                         </span>
                       </div>
                     </td>
-                    <td style={{ padding: "11px 14px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center" }}>
+                    <td style={{ padding: "10px 8px", fontFamily: "IBM Plex Mono, monospace", fontSize: 12, color: "var(--ink)", textAlign: "center", whiteSpace: "nowrap" }}>
                       {doc.valor_total != null ? formatBRL(doc.valor_total) : "—"}
                     </td>
-                    <td style={{ padding: "11px 14px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
-                    <td style={{ padding: "11px 8px", textAlign: "center", width: 44 }}>
+                    <td style={{ padding: "10px 4px", textAlign: "center" }}>{statusBadge(doc.status)}</td>
+                    <td style={{ padding: "10px 4px", textAlign: "center" }}>
                       <button
                         type="button"
                         onClick={(e) => handleExcluirDespesa(e, doc.id)}
